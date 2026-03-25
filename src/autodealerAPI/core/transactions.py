@@ -50,4 +50,5 @@ class Transaction:
         except Exception:
             raise
         finally:
+            transact_api.close_all_cursors
             self.close(commit=False if readonly else True)

@@ -1,13 +1,13 @@
 """Модуль для подключения к базе данных и создания транзакций"""
 import fdb
-from core.transactions import Transaction
-from utils.config import DatabaseConfig
+from .transactions import Transaction
+from ..utils.config import DatabaseConfig
 
 
 class Connection:
     def __init__(self, cfg: DatabaseConfig=DatabaseConfig()):
         self.cfg = cfg
-        self.connect = self._create_connect()
+        self.__connect = self._create_connect()
         
 
     def _create_connect(self):
@@ -29,10 +29,10 @@ class Connection:
 
     def transaction(self):
         try:
-            if not self.connect:
+            if not self.__connect:
                 raise ConnectionError("Отсутствует подключение к основной базе данных")
 
-            return Transaction(self.connect)
+            return Transaction(self.__connect)
         except Exception:
             # TODO
             raise

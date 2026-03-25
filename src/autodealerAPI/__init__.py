@@ -19,7 +19,7 @@ try:
     from .core.connect import Connection
     from .core.transactions import Transaction
     from .utils.config import DatabaseConfig
-    # from .exceptions import DatabaseError, ConnectionError TODO
+    from .exceptions.config_exceptions import IncompleteConfigurationError
 except ImportError as e:
     # Принцип "Надежность": если библиотека сломана при импорте, мы должны об этом знать четко.
     # Но не скрываем ошибку, а пробрасываем её с контекстом.
