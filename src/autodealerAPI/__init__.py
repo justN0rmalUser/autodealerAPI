@@ -16,9 +16,9 @@ __version__ = "0.1.0"
 # Это реализует принцип "Четкой структуры" — пользователь не лазает по подмодулям.
 
 try:
-    from .core.connect import Connection
-    from .core.transactions import Transaction
-    from .utils.config import DatabaseConfig
+    from .core.connection.connect import Connection
+    from .core.connection.transactions import Transaction
+    from .config import DatabaseConfig
     from .exceptions.config_exceptions import IncompleteConfigurationError
 except ImportError as e:
     # Принцип "Надежность": если библиотека сломана при импорте, мы должны об этом знать четко.
@@ -37,15 +37,3 @@ __all__ = [
     "Transaction",
     "DatabaseConfig"
 ]
-
-# -----------------------------------------------------------------------------
-# 4. ИНИЦИАЛИЗАЦИЯ (ОПЦИОНАЛЬНО)
-# -----------------------------------------------------------------------------
-# Избегайте тяжелой логики здесь. Если нужно настроить логирование пакета:
-
-import logging
-
-# Создаем логгер для пакета, но не настраиваем обработчики (handlers) глобально.
-# Это позволяет пользователю самому решить, куда писать логи.
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
