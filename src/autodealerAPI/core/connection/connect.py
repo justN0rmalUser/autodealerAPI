@@ -2,6 +2,11 @@
 import fdb 
 from .transactions import Transaction
 from autodealerAPI.config import DatabaseConfig
+from typing import Literal, overload, TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from .transactions import TransactionSession, TransactionHigh, TransactionLow
 
 
 class Connection:
@@ -31,11 +36,8 @@ class Connection:
             return con
 
 
-    def transaction(self, is_readonly: bool) -> Transaction:
+    def transaction(self) -> Transaction:
         """Открытие транзакции, в контексте которой будут выполняться команды
-
-        Args:
-            is_readonly (bool): Пометка - будет ли транзакция "только для чтения" 
 
         Raises:
             ConnectionError: Выбрасывается при отсутствия подключения к бд как такового
@@ -45,4 +47,27 @@ class Connection:
         """
         if not self.__connect.closed:
             raise ConnectionError("Отсутствует подключение к основной базе данных")
-        return Transaction(self.__connect, is_readonly)
+        return Transaction(self.__connect)
+    
+    
+    @overload
+    def single_transaction(self, *, type_api: Literal["high"], read_only: bool = False) -> TransactionSession[TransactionHigh]: ...
+    @overload
+    def single_transaction(self, *, type_api: Literal["low"], read_only: bool = False) -> TransactionSession[TransactionLow]: ...
+    
+    def single_transaction(self, *, type_api: Literal["high", "low"], read_only: bool = False) -> TransactionSession:
+        """Открытие транзакции "из коробки"
+
+        Args:
+            type_api (Literal[&quot;high&quot;, &quot;low&quot;]): Уровень взаимодействия с бд
+            read_only (bool, optional): Тип транзакции. По умолчанию False.
+
+        Returns:
+            Контекстный менеджер
+        """
+        tr = Transaction(self.__connect)
+        if type_api == "high":
+            return tr.start_transaction(type_api="high", read_only=read_only)
+        if type_api == "low":
+            return tr.start_transaction(type_api="low", read_only=read_only)
+            

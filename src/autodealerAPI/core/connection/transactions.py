@@ -1,15 +1,70 @@
 import fdb
-from typing import Generator
-from contextlib import contextmanager
-from .transaction_methods import TransactionMethods, TransactionMethodsReadonly
+from typing import Literal, Optional, Type, Generic, TypeVar, overload
+from contextlib import AbstractContextManager
+from .transaction_methods import TransactionLow, TransactionHigh
 
 
-class Transaction:    
-    def __init__(self, connection: fdb.Connection, readonly: bool=False) -> None:
+T = TypeVar('T', TransactionHigh, TransactionLow)
+
+
+class TransactionSession(AbstractContextManager, Generic[T]):
+    """
+    Контекстный менеджер для управления транзакцией БД.
+    Обеспечивает атомарность операций и корректное закрытие ресурсов.
+    """
+    def __init__(
+        self, 
+        transaction: fdb.Transaction, 
+        api: T,
+        read_only: bool
+    ) -> None:
+        self._transaction = transaction
+        self._read_only = read_only
+        self._api = api
+
+
+    def __enter__(self) -> T:
+        """
+        Вход в контекст: валидация состояния и инициализация API.
+        """
+        # 1. Проверка целостности соединения
+        if self._transaction.closed:
+            raise Exception("Транзакция закрыта!")
+
+        return self._api
+
+    def __exit__(
+        self, 
+        exc_type: Optional[Type[BaseException]], 
+        exc_val: Optional[BaseException], 
+        exc_tb: Optional[TracebackType] # pyright: ignore  # noqa: F821
+    ) -> Literal[False]:
+        """
+        Выход из контекста: фиксация или откат в зависимости от статуса выполнения.
+        Возвращает False, чтобы исключения не подавлялись.
+        """
+        if exc_type is not None:
+            # Произошло исключение -> Откат
+            if not self._transaction.closed:
+                self._transaction.rollback()
+                self._transaction.close()
+        else:
+            # Успешное выполнение -> Коммит (если не режим только для чтения)
+            if not self._transaction.closed:
+                if self._read_only:
+                    self._transaction.rollback()
+                else:
+                    self._transaction.commit()
+                self._transaction.close()
+        
+        return False
+
+
+class Transaction:
+    def __init__(self, connection: fdb.Connection) -> None:
         self.__connection: fdb.Connection = connection
-        self.__transaction: fdb.Transaction = self.__create_transact()
-        self.__RO: bool = readonly
-
+        self.__transaction = self.__create_transact()
+        
 
     def __create_transact(self) -> fdb.Transaction:
         try:
@@ -23,33 +78,32 @@ class Transaction:
             return trans
 
 
-    def close(self, commit: bool) -> None:
-        if not self.__transaction.closed:
-            if commit:
-                self.__transaction.commit()
-            else:
-                self.__transaction.rollback()
-            self.__transaction.close()
-            
- 
-    @contextmanager
-    def pool(self) -> Generator[TransactionMethods | TransactionMethodsReadonly]:
+    @overload
+    def start_transaction(self, *, type_api: Literal["high"], read_only: bool) -> TransactionSession[TransactionHigh]: ...
+    @overload
+    def start_transaction(self, *, type_api: Literal["low"], read_only: bool) -> TransactionSession[TransactionLow]: ...
+
+    def start_transaction(self, *, type_api: Literal["high", "low"], read_only: bool = False) -> TransactionSession:
         """Функция-генератор, которая позволяет взаимодействовать с одной транзакцией с автозакрытием и коммитом
 
         Yields:
-            Generator[TransactionMethods | TransactionMethodsReadonly]: API (методы) для записи в базу данных
+            Generator[TransactionHigh | TransactionLow]: API (методы) для записи в базу данных
         """
-        if self.__transaction.closed or self.__connection.closed:
-            raise Exception("Транзакция закрыта!") if self.__transaction.closed else Exception("Соединение закрыто!")
+        if self.__connection.closed:
+            raise ConnectionAbortedError("Соединение закрыто, создание транзакции невозможно!")
+        if self.__transaction.closed:
+            raise ConnectionAbortedError("Транзакция закрыта, выполнение методов невозможно!")
+            
+        if type_api == "high":
+            return TransactionSession[TransactionHigh](
+                transaction=self.__transaction,
+                api=TransactionHigh(self.__transaction),
+                read_only=read_only
+            )
+        if type_api == "low":
+            return TransactionSession[TransactionLow](
+                transaction=self.__transaction,
+                api=TransactionLow(self.__transaction),
+                read_only=read_only
+            )
         
-        if self.__RO:
-            transact_api = TransactionMethodsReadonly(self.__transaction)  
-        else:
-            transact_api = TransactionMethods(self.__transaction)
-
-        try:
-            yield transact_api
-        except Exception:
-            raise
-        finally:
-            self.close(commit=False if self.__RO else True)
