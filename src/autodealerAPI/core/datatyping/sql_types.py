@@ -1,4 +1,4 @@
-from autodealerAPI.utils.consts import ACCEPTED_TABLE_NAME
+from autodealerAPI.core.datatyping.consts import ACCEPTED_TABLE_NAME
 from pydantic import BaseModel, field_validator, ValidationError, ConfigDict
 from pypika.functions import CurTimestamp, CurDate
 

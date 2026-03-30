@@ -1,6 +1,6 @@
 import fdb
 from fdb import Cursor
-from autodealerAPI.utils.sql_types import InsertUpdateConfig, GenPrimaryIdConfig
+from autodealerAPI.core.datatyping.sql_types import InsertUpdateConfig, GenPrimaryIdConfig
 from pypika import Query
 from pypika.functions import CurDate
 
@@ -201,7 +201,7 @@ class TransactionLow(TransactionBackService):
             return None
 
 
-    def new_nomenclature(self, *, dir_reg: int, name: str, shop_tree: int, code: str, firm_id: int, cost: float, margin: float, firm_value: str,) -> int:
+    def new_nomenclature(self, *, dir_reg: int, name: str, shop_tree: int, code: str, firm_id: int, cost: float, margin: float, firm_value: str) -> int:
         cursor: Cursor = self._cursor()
 
         search_text: str = f"{name.upper().replace(' ', '')} {name.upper().replace(' ', '')} {firm_value.upper().replace(' ', '')} "
@@ -243,31 +243,22 @@ class TransactionLow(TransactionBackService):
             }
         )
         
-        self.__insert(table=cfg_NOM, cur=cursor)
-        self.__insert(table=cfg_ATTR, cur=cursor)
-        
-        cursor.close()
-        return id_NOM
-
-    # =========================================================================
-    # SHOP_PRICE
-    # =========================================================================
-    def shop_price(self, *, snid: int, price: float) -> None:
-        cursor: Cursor = self._cursor()
-
         cfg_PRICE = InsertUpdateConfig(
             name="SHOP_PRICE",
             columns={
                 "SHOP_PRICE_LIST_ID": 3,
-                "SHOP_NOMENCLATURE_ID": snid,
+                "SHOP_NOMENCLATURE_ID": id_NOM,
                 "PRICE_POSITION": 1,
-                "PRICE1": price,
+                "PRICE1": cost,
             },
         )
-
+        
+        self.__insert(table=cfg_NOM, cur=cursor)
+        self.__insert(table=cfg_ATTR, cur=cursor)
         self.__insert(table=cfg_PRICE, cur=cursor)
-
+        
         cursor.close()
+        return id_NOM
 
 
 class TransactionHigh(TransactionBackService):
@@ -303,3 +294,25 @@ class TransactionHigh(TransactionBackService):
             document_type_id=document_type_id
         )
         return doc_calc_id
+    
+    
+    def fill_calculation(self, *, 
+        shop_nomeclature_id: int,
+        doc_calc_id: int,
+        count: int,
+        price: int,
+        pos: int
+    ) -> None:
+        """Вносит в калькуляцию
+
+        Args:
+            shop_nomeclature_id (int): ID товара, который нужно внести
+            doc_calc_id (int): ID документа, куда будет внесен товар
+            count (int): Количество единиц товара
+            price (int): Цена товара за штуку
+            pos (int): Позиция в документе
+
+        Returns:
+            None
+        """
+        
