@@ -82,12 +82,12 @@ class TransactionLow(TransactionBackService):
         return id_DOC_REG
         
         
-    def document_registry(self, *, _metatable_id: int, document_type_id: int) -> int:
+    def document_registry(self, *, _metatable_id: int, _document_type_id: int) -> int:
         """Регистрация документа во внутренней системе
         
         Args:
             _metatable_id (int): Мета таблица с ID вида записи
-            document_type_id (int): Мета таблица с ID вида док-та
+            _document_type_id (int): Мета таблица с ID вида док-та
 
         Returns:
             DOCUMENT_REGISTRY_ID (int): ID таблицы DOCUMENT_REGISTRY
@@ -106,7 +106,7 @@ class TransactionLow(TransactionBackService):
                 "CREATE_DATE": CurDate(),
                 "CHANGE_USER_ID": 1,
                 "CHANGE_DATE": CurDate(),
-                "DOCUMENT_TYPE_ID_CACHE": document_type_id,
+                "DOCUMENT_TYPE_ID_CACHE": _document_type_id,
             },
         )
 
@@ -116,14 +116,14 @@ class TransactionLow(TransactionBackService):
         return id_DOC_REG
 
 
-    def document_calculation(self, *, title: str, descript: str, doc_reg_id: int, document_type_id: int) -> int:
+    def document_calculation(self, *, _title: str, _descript: str, _doc_reg_id: int, _document_type_id: int) -> int:
         """Создание калькуляции в системе
 
         Args:
-            title (str): Наименование документа
-            descript (str): Описание документа
-            doc_reg_id (int): Ссылка на позицию в DOCUMENT_REGISTRY
-            document_type_id (int): Мета таблица с ID вида док-та
+            _title (str): Наименование документа
+            _descript (str): Описание документа
+            _doc_reg_id (int): Ссылка на позицию в DOCUMENT_REGISTRY
+            _document_type_id (int): Мета таблица с ID вида док-та
 
         Returns:
             SERVICE_CALCULATION_ITEM_ID (int): ID таблицы SERVICE_CALCULATION_ITEM
@@ -137,12 +137,12 @@ class TransactionLow(TransactionBackService):
             name="SERVICE_CALCULATION_ITEM",
             columns={
                 "SERVICE_CALCULATION_ITEM_ID": id_CALC,
-                "NAME": title,
+                "NAME": _title,
                 "PRICE_NORM_ID": 6,
-                "NOTES": descript,
+                "NOTES": _descript,
                 "DATE_CREATE": CurDate(),
-                "DOCUMENT_REGISTRY_ID": doc_reg_id,
-                "DOCUMENT_TYPE_ID": document_type_id,
+                "DOCUMENT_REGISTRY_ID": _doc_reg_id,
+                "DOCUMENT_TYPE_ID": _document_type_id,
                 "FLAG": 16,
                 "DISCOUNT_WORK": 0,
                 "DISCOUNT_GOODS": 0,
@@ -179,10 +179,8 @@ class TransactionLow(TransactionBackService):
 
         cursor.close()
 
-    # =========================================================================
-    # FIND_SHOPNOM_ID
-    # =========================================================================
-    def find_shopnom_id(self, *, firm: int, code: str) -> int | None:
+
+    def find_shopnomenclature_id(self, *, firm: int, code: str) -> int | None:
         cursor: Cursor = self._cursor()
 
         query = """
@@ -267,31 +265,31 @@ class TransactionHigh(TransactionBackService):
         
         
     def create_calculation(self, *, 
-        title: str,
-        descript: str,
-        metatable_id: int,
-        document_type_id: int
+        _title: str,
+        _descript: str,
+        _metatable_id: int,
+        _document_type_id: int
     ) -> int:
         """Создает пустую калькуляцию в системе
 
         Args:
-            title (str): Наименование док-та
-            descript (str): Описание док-та
-            metatable_id (int): Принадлежность записи к системе
-            document_type_id (int): Принадлежность документа к системе
+            _title (str): Наименование док-та
+            _descript (str): Описание док-та
+            _metatable_id (int): Принадлежность записи к системе
+            _document_type_id (int): Принадлежность документа к системе
             
         Returns:
             doc_calc_id (int): ID созданной калькуляции
         """
-        doc_reg_id: int = self.__tr.document_registry(
-            _metatable_id=metatable_id, 
-            document_type_id=document_type_id
+        _doc_reg_id: int = self.__tr.document_registry(
+            _metatable_id=_metatable_id, 
+            _document_type_id=_document_type_id
         )
         doc_calc_id: int = self.__tr.document_calculation(
-            title=title, 
-            descript=descript, 
-            doc_reg_id=doc_reg_id, 
-            document_type_id=document_type_id
+            _title=_title, 
+            _descript=_descript, 
+            _doc_reg_id=_doc_reg_id, 
+            _document_type_id=_document_type_id
         )
         return doc_calc_id
     

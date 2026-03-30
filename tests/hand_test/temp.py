@@ -1,4 +1,7 @@
-from itertools import product
+from autodealerAPI import Connection
 
 
-print(list(product(["A", "B", "C"], repeat=4)))
+con = Connection()
+trans = con.transaction()
+with trans.start_transaction(type_api="high", read_only=True) as t:
+    t.

@@ -1,5 +1,10 @@
-from .types import std, Decimal
-from .match_attribute import store_attribute
+from autodealerAPI.utils.standard import std
+from autodealerAPI.utils.match_attribute import store_attribute
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from autodealerAPI.utils.standard import Decimal
 
 
 class Product:
@@ -61,3 +66,4 @@ class Product:
     @property
     def shop_nom_tree_id(self):
         return store_attribute(self.name)
+    
