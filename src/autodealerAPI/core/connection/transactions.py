@@ -1,7 +1,7 @@
 import fdb
 from typing import Literal, Optional, Type, Generic, TypeVar, overload
 from contextlib import AbstractContextManager
-from .transactionAPIs import TransactionLow, TransactionHigh
+from ..methods.transactionAPIs import TransactionLow, TransactionHigh
 
 
 T = TypeVar('T', TransactionHigh, TransactionLow)

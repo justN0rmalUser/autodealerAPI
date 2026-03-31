@@ -20,6 +20,7 @@ try:
     from .core.connection.transactions import Transaction
     from .config import DatabaseConfig
     from .exceptions.config_exceptions import IncompleteConfigurationError
+    from .models import AcceptedTables
 except ImportError as e:
     # Принцип "Надежность": если библиотека сломана при импорте, мы должны об этом знать четко.
     # Но не скрываем ошибку, а пробрасываем её с контекстом.

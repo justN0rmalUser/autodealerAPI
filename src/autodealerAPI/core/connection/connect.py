@@ -13,8 +13,8 @@ class Connection:
     """
     Класс для простого подключения к базе данных
     """
-    def __init__(self, cfg: DatabaseConfig) -> None:
-        self.__cfg = cfg
+    def __init__(self, config: DatabaseConfig) -> None:
+        self.__cfg = config
         self.__connect = self.__create_connect()
         
 

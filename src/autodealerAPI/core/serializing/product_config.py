@@ -64,6 +64,6 @@ class Product:
         raise KeyError("Ключ (имя) не найден!")
 
     @property
-    def shop_nom_tree_id(self):
+    def shop_nom_tree_id(self) -> int:
         return store_attribute(self.name)
     
