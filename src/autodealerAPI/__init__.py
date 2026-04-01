@@ -36,5 +36,6 @@ __all__ = [
     "__version__",
     "Connection",
     "Transaction",
-    "DatabaseConfig"
+    "DatabaseConfig",
+    "AcceptedTables"
 ]

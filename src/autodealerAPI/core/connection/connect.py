@@ -3,10 +3,7 @@ import fdb
 from .transactions import Transaction
 from autodealerAPI.config import DatabaseConfig
 from typing import Literal, overload, TYPE_CHECKING
-
-
-if TYPE_CHECKING:
-    from .transactions import TransactionSession, TransactionHigh, TransactionLow
+from .transactions import TransactionSession, TransactionHigh, TransactionLow, TransactionBasic
 
 
 class Connection:
@@ -54,8 +51,10 @@ class Connection:
     def single_transaction(self, *, type_api: Literal["high"], read_only: bool = False) -> TransactionSession[TransactionHigh]: ...
     @overload
     def single_transaction(self, *, type_api: Literal["low"], read_only: bool = False) -> TransactionSession[TransactionLow]: ...
+    @overload
+    def single_transaction(self, *, type_api: Literal["basic"], read_only: bool = False) -> TransactionSession[TransactionBasic]: ...
     
-    def single_transaction(self, *, type_api: Literal["high", "low"], read_only: bool = False) -> TransactionSession:
+    def single_transaction(self, *, type_api: Literal["high", "low", "basic"], read_only: bool = False) -> TransactionSession:
         """Открытие транзакции "из коробки"
 
         Args:
@@ -70,4 +69,5 @@ class Connection:
             return tr.start_transaction(type_api="high", read_only=read_only)
         if type_api == "low":
             return tr.start_transaction(type_api="low", read_only=read_only)
-            
+        if type_api == "basic":
+            return tr.start_transaction(type_api="basic", read_only=read_only)    

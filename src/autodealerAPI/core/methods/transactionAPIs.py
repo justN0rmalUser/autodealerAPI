@@ -1,6 +1,9 @@
 import fdb
 from fdb import Cursor
 from .document_api import Document
+from autodealerAPI import AcceptedTables
+from datetime import datetime
+from ..serializing.sql import SubQuery
 
 
 class TransactionBasic:
@@ -15,32 +18,108 @@ class TransactionBasic:
             raise
         
     
-    # def new(self, table: config: BaseModel) -> Document:
-    #     return Document.new(self._cursor())
+    def new(self, cursor: Cursor, *, schema: AcceptedTables, data: dict) -> Document:
+        valid = schema.value.model_validate(data)
+        return Document.new(cursor, schema=schema, valid_data=valid)
         
-        
-    # def load(self, config: object) -> Document:
-    #     metadata: dict = getattr(config, '__meta__')
-        
-    #     return Document.load(
-    #         self._cursor(),
-    #         name=metadata["TABLE_NAME"],
-    #         gen_name=metadata["GEN_NAME"],
-    #         seq_name=metadata["PRIMARY_KEY"],
-    #         seq_value=config.ID
-    #     )
-        
+    def load(self, cursor: Cursor, *, schema: AcceptedTables, ID: int) -> Document:
+        return Document.load(cursor, schema=schema, ID=ID)
 
     
 class TransactionLow(TransactionBasic):
     def __init__(self, transaction: fdb.Transaction) -> None:
         super().__init__(transaction)
-        
-    
-    def 
  
+    
+    def new_directory_registry(self): ...
 
+    def new_document_registry(self):
+        cursor = self._cursor()
+        
+        data = {
+            "METATABLE_ID": 12,
+            "CREATE_USER_ID": 1,
+            "CREATE_DATE": datetime.date(datetime.now()),
+            "CHANGE_USER_ID": 1,
+            "CHANGE_DATE": datetime.date(datetime.now()),
+            "DOCUMENT_TYPE_ID_CACHE": 7
+        }
+        return self.new(cursor, schema=AcceptedTables.DOCUMENT_REGISTRY, data=data)
+    
+    def new_document_out(self, summa: float, partner_id: int):
+        cursor = self._cursor()
+        
+        data = {
+            "DOCUMENT_TYPE_ID": 7,
+            "ORGANIZATION_ID": 1,
+            "ORGANIZATION_CONTACT_ID": 4458,
+            "ORGANIZATION_REQUISITE_ID": 2,
+            "CLIENT_ID": partner_id,
+            "SUMMA": summa,
+            "DATE_ACCEPT": datetime.date(datetime.now()),
+            "FLAG": 1
+        }
+        return self.new(cursor, schema=AcceptedTables.DOCUMENT_OUT, data=data)
+        
+    def new_document_out_header(self, doc_reg: int, doc_out: int):
+        cursor = self._cursor()
+        
+        data = {
+            "DOCUMENT_REGISTRY_ID": doc_reg,
+            "DOCUMENT_OUT_ID": doc_out,
+            "DOCUMENT_TYPE_ID": 7,
+            "USER_ID": 1,
+            "NUMBER": SubQuery.NUMBER(),
+            "DATE_CREATE": datetime.now(),
+            "STATE": 2,
+            "MANAGER_ID": 1,
+            "BARCODE": '20000004'
+        }
+        return self.new(cursor, schema=AcceptedTables.DOCUMENT_OUT_HEADER, data=data)
 
+    def new_document_action(self, doc_reg: int):
+        cursor = self._cursor()
+        
+        data = {
+            "DOCUMENT_REGISTRY_ID": doc_reg,
+            "USER_ID": 1,
+            "ACTION_DATETIME": datetime.now(),
+            "STATE": 4
+        }
+        return self.new(cursor, schema=AcceptedTables.DOCUMENT_ACTION, data=data)
+
+    def new_document_return_pvd_detail(self, doc_out_head: int):
+        cursor = self._cursor()
+        
+        data = {
+            "DOCUMENT_OUT_HEADER_ID": doc_out_head,
+            "REASON": 'Отказ (Auto)'
+        }
+        return self.new(cursor, schema=AcceptedTables.DOCUMENT_RETURN_PVD_DETAIL, data=data)
+
+    def new_goods_out(self, 
+        good_in: int, 
+        doc_out: int, 
+        shop_nom: int, 
+        price: float, 
+        count: int, 
+        pos: int
+    ):
+        cursor = self._cursor()
+        
+        data = {
+            "GOODS_IN_ID": good_in,
+            "DOCUMENT_OUT_ID": doc_out,
+            "SHOP_NOMENCLATURE_ID": shop_nom,
+            "COST": price,
+            "GOODS_COUNT": count,
+            "GOODS_COUNT_FACT": count,
+            "GUARANTE": 1,
+            "POSITION_NUMBER": pos
+        }
+        return self.new(cursor, schema=AcceptedTables.GOODS_OUT, data=data)
+    
+    
 class TransactionHigh:
     def __init__(self, transaction: fdb.Transaction) -> None:
         self.__tr = TransactionLow(transaction)

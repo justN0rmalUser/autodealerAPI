@@ -1,10 +1,11 @@
+from types import TracebackType
 import fdb
 from typing import Literal, Optional, Type, Generic, TypeVar, overload
 from contextlib import AbstractContextManager
-from ..methods.transactionAPIs import TransactionLow, TransactionHigh
+from ..methods.transactionAPIs import TransactionLow, TransactionHigh, TransactionBasic
 
 
-T = TypeVar('T', TransactionHigh, TransactionLow)
+T = TypeVar('T', TransactionHigh, TransactionLow, TransactionBasic)
 
 
 class TransactionSession(AbstractContextManager, Generic[T]):
@@ -37,7 +38,7 @@ class TransactionSession(AbstractContextManager, Generic[T]):
         self, 
         exc_type: Optional[Type[BaseException]], 
         exc_val: Optional[BaseException], 
-        exc_tb: Optional[TracebackType] # pyright: ignore  # noqa: F821
+        exc_tb: Optional[TracebackType] 
     ) -> Literal[False]:
         """
         Выход из контекста: фиксация или откат в зависимости от статуса выполнения.
@@ -82,8 +83,10 @@ class Transaction:
     def start_transaction(self, *, type_api: Literal["high"], read_only: bool) -> TransactionSession[TransactionHigh]: ...
     @overload
     def start_transaction(self, *, type_api: Literal["low"], read_only: bool) -> TransactionSession[TransactionLow]: ...
+    @overload
+    def start_transaction(self, *, type_api: Literal["basic"], read_only: bool) -> TransactionSession[TransactionBasic]: ...
 
-    def start_transaction(self, *, type_api: Literal["high", "low"], read_only: bool = False) -> TransactionSession:
+    def start_transaction(self, *, type_api: Literal["high", "low", "basic"], read_only: bool = False) -> TransactionSession:
         """Функция-генератор, которая позволяет взаимодействовать с одной транзакцией с автозакрытием и коммитом
 
         Yields:
@@ -106,4 +109,11 @@ class Transaction:
                 api=TransactionLow(self.__transaction),
                 read_only=read_only
             )
+        if type_api == "basic":
+            return TransactionSession[TransactionBasic](
+                transaction=self.__transaction,
+                api=TransactionBasic(self.__transaction),
+                read_only=read_only
+            )
+        
         
