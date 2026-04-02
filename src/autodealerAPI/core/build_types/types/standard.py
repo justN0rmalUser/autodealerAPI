@@ -2,22 +2,27 @@ from pydantic import BaseModel
 from decimal import Decimal
 import re
 
+from ....utils.dop_data.fmt_FirmCode import fmt_code, fmt_firm
 
-class std(BaseModel):    
+
+class std:    
     @classmethod
     def firm(cls, value: str) -> int:
         """
         Ищет ID поставщика деталей
         """
-        pass #TODO
-        return -1
+        result = fmt_firm.get(value)
+        if result is None:
+            raise ValueError("ID фирмы не найдено")
+        return result
     
     @classmethod
     def code(cls, value: str) -> str:
-        return value
+        result = fmt_code.get(value, value)
+        return result
     
     @classmethod
-    def price(cls, value: str | float) -> Decimal:
+    def price(cls, value: str | float) -> float:
         """Цена товара
 
         Args:
@@ -32,13 +37,13 @@ class std(BaseModel):
         if isinstance(value, str):
             result: str = value.replace(',', '.')
             result: str = re.sub(r"/[^0-9.]/g", '', value)
-            return Decimal(result)
+            return float(result)
         elif isinstance(value, float):
-            return Decimal.from_float(value)
+            return float(value)
         raise TypeError("Не подходящий тип значения! Допустимые: str | float!")
         
     @classmethod
-    def count(cls, value: str | int | float) -> Decimal | int:
+    def count(cls, value: str | int | float) -> int:
         """Количество товара
 
         Args:
@@ -54,10 +59,10 @@ class std(BaseModel):
         if isinstance(value, str):
             result: str = value.replace(',', '.')
             result: str = re.sub(r"/[^0-9.]/g", '', value)
-            return Decimal(result)
-        elif isinstance(value, float):
-            return Decimal.from_float(value)
+            return float(result)
         elif isinstance(value, int):
+            return value
+        else:
             return value
         raise TypeError("Не подходящий тип значения! Допустимые: str | float | int!")
     

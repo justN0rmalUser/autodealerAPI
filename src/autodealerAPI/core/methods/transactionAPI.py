@@ -1,11 +1,12 @@
 from decimal import Decimal
 import fdb
 from fdb import Cursor
+from typing import Literal
 
-from .documentAPI import Document
-from autodealerAPI import AcceptedTables as Table
+from .tableAPI import TableRow
+from ..build_types.models import AcceptedTables as Table
 from datetime import datetime
-from ..serializing.sql import SubQuery
+from pypika.terms import BasicCriterion
 
 
 class TransactionBasic:
@@ -20,13 +21,17 @@ class TransactionBasic:
             raise
         
     
-    def new(self, cursor: Cursor, *, schema: Table, data: dict) -> Document:
+    def new(self, cursor: Cursor, *, schema: Table, data: dict) -> TableRow:
         valid_schema = schema.value.model_validate(data)
         valid = valid_schema.model_dump(exclude_none=True)
-        return Document.new(cursor, schema=schema, valid_data=valid)
+        return TableRow.new(cursor, schema=schema, valid_data=valid)
         
-    def load(self, cursor: Cursor, *, schema: Table, ID: int | None) -> Document:
-        return Document.load(cursor, schema=schema, exist_ID=ID)
+    def load(self, cursor: Cursor, *, schema: Table, ID: int | None) -> TableRow:
+        return TableRow.load(cursor, schema=schema, exist_ID=ID)
+    
+    def find(self, cursor: Cursor, *, schema: Table, condition: BasicCriterion | None) -> TableRow:
+        pass
+
 
     
 class TransactionLow(TransactionBasic):
@@ -90,6 +95,16 @@ class TransactionLow(TransactionBasic):
             "STATE": 4
         }
         return self.new(cursor, schema=Table.DOCUMENT_ACTION, data=data)
+    
+    def new_document_cargo(self, doc_out: int, agent_id: Literal[8876, 8880]):
+        cursor = self._cursor()
+        
+        data = {
+            "DOCUMENT_OUT_ID": doc_out,
+            "RECEIVER_ID": agent_id,
+            "PAYER_ID": agent_id
+        }
+        return self.new(cursor, schema=Table.DOCUMENT_CARGO, data=data)
 
     def new_document_return_pvd_detail(self, doc_out_head: int):
         cursor = self._cursor()
@@ -129,9 +144,14 @@ class TransactionHigh:
         
         
     def create_document_out(self, partner_id: int, summa: float):
+        # создание документов
         DocReg = self._trans.new_document_registry()
         DocOut = self._trans.new_document_out(summa=summa, partner_id=partner_id)
+
+        if not (isinstance(DocReg.PK_ID, int) and isinstance(DocOut.PK_ID, int)):
+            raise TypeError("Первичные ключи не заданы")
         
+        # получение значения NUMBER
         temp_cur = self._trans._cursor()
         req = temp_cur.execute('SELECT MAX("NUMBER") FROM DOCUMENT_OUT_HEADER WHERE DOCUMENT_TYPE_ID = 7').fetchone()
         temp_cur.close()
@@ -139,24 +159,55 @@ class TransactionHigh:
             raise ValueError("Номер документа не найден")
         num = req[0] + 1
         
-        if not (isinstance(DocReg.PK_ID, int) and isinstance(DocOut.PK_ID, int)):
-            raise TypeError("Первичные ключи не заданы")
-        
+        # Карго
+        DocCargo = self._trans.new_document_cargo(
+            doc_out=DocOut.PK_ID, 
+            agent_id=partner_id
+        )
+
+        # заголовок документа
         DocOutHead = self._trans.new_document_out_header(
             doc_reg=DocReg.PK_ID, 
             doc_out=DocOut.PK_ID, 
             number=num
         )
 
-            
         if not isinstance(DocOutHead.PK_ID, int):
-            raise TypeError("Первичные ключ DocOutHead не задан")
+            raise TypeError("Первичный ключ DocOutHead не задан")
         
         DocRetPvdDet = self._trans.new_document_return_pvd_detail(DocOutHead.PK_ID)
+
+        return {
+            "DOCUMENT_REGISTRY": DocReg,
+            "DOCUMENT_OUT": DocOut,
+            "DOCUMENT_CARGO": DocCargo,
+            "DOCUMENT_OUT_HEADER": DocOutHead,
+            "DOCUMENT_RETURN_PVD_DETAIL": DocRetPvdDet
+        }
+    
+    def fill_document_out(self, raw_products: list[dict]):
+        cursor = self._trans._cursor()
+        # products = map(Product, raw_products)
+
+        GET_GOODSIN = """
+        SELECT (
+            GIN.GOODS_IN_ID, 
+            GIN.SHOP_NOMENCLATURE_ID, 
+            GIN.GOODS_COUNT
+        ) FROM GOODS_IN AS GIN
+        LEFT JOIN SHOP_NOMENCLATURE USING(SHOP_NOMENCLATURE_ID)
+        WHERE PRODUCER_ID = ? AND (SEARCH_VALUE_NUMBER_MANUFACTURE = ? OR CODE = ?)
+        ORDER BY GIN.GOODS_IN_ID DESC, GIN.SHOP_NOMENCLATURE_ID DESC;
+        """
+        
+        for product in products:
+            req = cursor.execute(GET_GOODSIN, (product.firm_id, product.code, product.code)).fetchall()
+            for goods_in, shop_nom_id, count in req:
+                if count >= product.count:
+                    pass
+                
         
 
-        
-        
         
     # def create_calculation(self, *, 
     #     title: str,
@@ -185,23 +236,22 @@ class TransactionHigh:
     #     return doc_calc_id
     
     
-    def fill_calculation(self, *, 
-        shop_nomeclature_id: int,
-        doc_calc_id: int,
-        count: int,
-        price: int,
-        pos: int
-    ) -> None:
-        """Вносит в калькуляцию
+    # def fill_calculation(self, *, 
+    #     shop_nomeclature_id: int,
+    #     doc_calc_id: int,
+    #     count: int,
+    #     price: int,
+    #     pos: int
+    # ) -> None:
+    #     """Вносит в калькуляцию
 
-        Args:
-            shop_nomeclature_id (int): ID товара, который нужно внести
-            doc_calc_id (int): ID документа, куда будет внесен товар
-            count (int): Количество единиц товара
-            price (int): Цена товара за штуку
-            pos (int): Позиция в документе
+    #     Args:
+    #         shop_nomeclature_id (int): ID товара, который нужно внести
+    #         doc_calc_id (int): ID документа, куда будет внесен товар
+    #         count (int): Количество единиц товара
+    #         price (int): Цена товара за штуку
+    #         pos (int): Позиция в документе
 
-        Returns:
-            None
-        """
-        
+    #     Returns:
+    #         None
+    #     """

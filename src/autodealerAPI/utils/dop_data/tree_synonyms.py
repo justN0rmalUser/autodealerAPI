@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 comb1 = {
@@ -236,7 +236,7 @@ comb4 = {
 	"фильтр автоматической коробки передач": 131,
 }
 
-@dataclass
+
 class Synonyms:
     word_1_dict: dict[str, int] = comb1
     word_2_dict: dict[str, int] = comb2

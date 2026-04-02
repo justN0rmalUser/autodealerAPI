@@ -1,5 +1,5 @@
 from enum import Enum
-from .utils.schemas.tables_property import *  # noqa: F403
+from .types.schemas.tables_schema import *  # noqa: F403
 
 
 class AcceptedTables(Enum):
@@ -16,3 +16,4 @@ class AcceptedTables(Enum):
     DOCUMENT_RETURN_PVD_DETAIL = DOCUMENT_RETURN_PVD_DETAIL_schema
     GOODS_OUT = GOODS_OUT_schema
     GOODS_IN = GOODS_IN_schema
+    DOCUMENT_CARGO = DOCUMENT_CARGO_schema

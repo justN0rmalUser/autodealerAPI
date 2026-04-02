@@ -1,6 +1,6 @@
 import Levenshtein
 from itertools import product
-from .tree_synonyms import Synonyms
+from .dop_data.tree_synonyms import Synonyms
 from dataclasses import dataclass
 
 

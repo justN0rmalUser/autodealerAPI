@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from decimal import Decimal
 from datetime import datetime
-from ...core.serializing.sql import SubQuery
 
 
 class AbsModel(BaseModel):
@@ -139,7 +138,7 @@ class DOCUMENT_OUT_HEADER_schema(AbsModel):
 	DOCUMENT_TYPE_ID: int 
 	USER_ID: int 
 	PREFIX: str | None = None
-	NUMBER: int | SubQuery
+	NUMBER: int 
 	SUFFIX: str | None = None
 	DATE_CREATE: str | datetime 
 	MARK: int | None = None
@@ -226,3 +225,27 @@ class GOODS_IN_schema(AbsModel):
 	GOODS_NOTES: str | None = None 
 	IS_SALED: int | None = 0
 	POSITION_NUMBER: int 
+
+class DOCUMENT_CARGO_schema(AbsModel):
+	DOCUMENT_CARGO_ID: int = -1
+	DOCUMENT_OUT_ID: int 
+	SENDER_ID: int = 1
+	SENDER_CONTACT_ID: int = 4458
+	SENDER_REQUISITE_ID: int = 2
+	RECEIVER_ID: int 
+	RECEIVER_CONTACT_ID: int | None = None
+	RECEIVER_REQUISITE_ID: int | None = None
+	ADDON_NUMBER: str | None = None
+	ADDON_DATE: str | None = None
+	UPDATE_SENDER: int = 0
+	UPDATE_RECEIVER: int  = 0
+	PAYER_ID: int 
+	PAYER_CONTACT_ID: int | None = None
+	PAYER_REQUISITE_ID: int | None = None
+	UPDATE_PAYER: int = 0
+	USE_MAIN_PAYMENT: int = 0
+	SHIPMENT_DOC_POSITIONS: str | None = None
+	SHIPMENT_DOC_NUMBER: str | None = None
+	SHIPMENT_DOC_DATE: str | None = None
+	SHIPMENT_DOC_NAME: str | None = None
+

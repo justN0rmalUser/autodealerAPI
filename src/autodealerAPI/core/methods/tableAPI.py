@@ -5,10 +5,10 @@ from pypika import Query, Table
 from pypika.functions import CurDate
 from fdb import Cursor
 
-from autodealerAPI import AcceptedTables
+from ..build_types.models import AcceptedTables
 
 
-class Document:
+class TableRow:
     """Класс, философия которого - 1 экземпляр = 1 запись в базе данных"""
     def __init__(self, cursor: Cursor, NAME: str) -> None:
         self._cursor = cursor
@@ -20,9 +20,26 @@ class Document:
     def PRIMARY_KEY(self) -> str:
         return f"{self.NAME}_ID"
 
+    @staticmethod
+    def find(cursor: Cursor, schema: AcceptedTables, condition) -> tuple[Self]:
+        if not condition:
+            raise Exception("Условия пустые")
+
+        abs_obj = TableRow(cursor, schema.name)
+
+        table = Table(abs_obj.NAME)
+        query = Query.from_(table).select(table.star).where(condition)
+        
+        result = cursor.execute(str(query)).fetchall()
+
+        if not result:
+            raise DataError("Такой записи не существует!")
+            
+        return result
+    
 
     @classmethod
-    def load(cls, cursor: Cursor, *, schema: AcceptedTables, exist_ID: int | None) -> Self:
+    def load(cls, cursor: Cursor, schema: AcceptedTables, *, exist_ID: int | None) -> Self:
         obj = cls(cursor, schema.name)
         table = Table(obj.NAME)
         
@@ -42,7 +59,7 @@ class Document:
 
 
     @classmethod
-    def new(cls, cursor: Cursor, *, schema: AcceptedTables, valid_data: dict) -> Self:
+    def new(cls, cursor: Cursor, schema: AcceptedTables, *, valid_data: dict) -> Self:
         obj = cls(cursor, schema.name)
         obj.PK_ID = obj._gen_id("new")
 
@@ -66,10 +83,9 @@ class Document:
         if mode == "new": 
             request = f"SELECT NEXT VALUE FOR GEN_{self.NAME} FROM RDB$DATABASE"
         elif mode == "last":
-            request = f"SELECT GEN_ID(GEN_{self.NAME}, 0) FROM RDB$DATABASE;"
+            request = f"SELECT GEN_ID(GEN_{self.NAME}, 0) FROM RDB$DATABASE"
             
         response = self._cursor.execute(request).fetchone()
         if response is None:
             raise ValueError(f"Не удалось получить идентификатор для таблицы '{self.NAME}'")
         return int(response[0])
-    

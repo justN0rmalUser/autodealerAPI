@@ -2,7 +2,7 @@
 import fdb 
 from .transactions import Transaction
 from autodealerAPI.config import DatabaseConfig
-from typing import Literal, overload, TYPE_CHECKING
+from typing import Literal, overload
 from .transactions import TransactionSession, TransactionHigh, TransactionLow, TransactionBasic
 
 
