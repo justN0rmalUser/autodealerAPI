@@ -2,7 +2,7 @@ from types import TracebackType
 import fdb
 from typing import Literal, Optional, Type, Generic, TypeVar, overload
 from contextlib import AbstractContextManager
-from ..methods.transactionAPIs import TransactionLow, TransactionHigh, TransactionBasic
+from ..methods.transactionAPI import TransactionLow, TransactionHigh, TransactionBasic
 
 
 T = TypeVar('T', TransactionHigh, TransactionLow, TransactionBasic)

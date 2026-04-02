@@ -4,12 +4,11 @@ from datetime import datetime
 from ...core.serializing.sql import SubQuery
 
 
-class DIRECTORY_REGISTRY_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-	
+class AbsModel(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class DIRECTORY_REGISTRY_schema(AbsModel):
 	DIRECTORY_REGISTRY_ID: int = -1
 	METATABLE_ID: int 
 	CREATE_USER_ID: int 
@@ -17,11 +16,7 @@ class DIRECTORY_REGISTRY_schema(BaseModel):
 	CHANGE_USER_ID: int 
 	CHANGE_DATE: str | datetime 
 
-class SERVICE_CALCULATION_ITEM_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
+class SERVICE_CALCULATION_ITEM_schema(AbsModel):
 	SERVICE_CALCULATION_ITEM_ID: int = -1
 	SERVICE_CALCULATION_TREE_ID: int | None = None 
 	NAME: str 
@@ -42,12 +37,7 @@ class SERVICE_CALCULATION_ITEM_schema(BaseModel):
 	FLAG: int 
 	RMI_CAR_SELECT: str | None = None 
 
-class SERVICE_CALCULATION_GOODS_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-	
+class SERVICE_CALCULATION_GOODS_schema(AbsModel):
 	SERVICE_CALCULATION_GOODS_ID: int = -1
 	SERVICE_CALCULATION_ITEM_ID: int
 	SHOP_NOMENCLATURE_ID: int
@@ -57,12 +47,7 @@ class SERVICE_CALCULATION_GOODS_schema(BaseModel):
 	DISCOUNT_FIX: Decimal | None = None 
 	POSITION_NUMBER: int
 
-class SHOP_NOMENCLATURE_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class SHOP_NOMENCLATURE_schema(AbsModel):
 	SHOP_NOMENCLATURE_ID: int = -1
 	DIRECTORY_REGISTRY_ID: int 
 	SHOP_NOMENCLATURE_TREE_ID: int
@@ -116,15 +101,10 @@ class SHOP_NOMENCLATURE_schema(BaseModel):
 	BARCODE_EXTRA: str | None = None 
 	SEARCH_VALUE_BARCODE_EXTRA: str | None = None 
 
-class SHOP_NOMENCLATURE_ATTRIBUTE_schema(BaseModel):
+class SHOP_NOMENCLATURE_ATTRIBUTE_schema(AbsModel):
 	DIRECTORY_REGISTRY_ID: int 
 
-class SHOP_PRICE_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class SHOP_PRICE_schema(AbsModel):
 	SHOP_PRICE_ID: int = -1
 	SHOP_PRICE_GROUP_ID: int  
 	SHOP_PRICE_LIST_ID: int 
@@ -138,12 +118,7 @@ class SHOP_PRICE_schema(BaseModel):
 	PRICE6: Decimal | None = None 
 	NOTES: str | None = None 
 
-class DOCUMENT_REGISTRY_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-	
+class DOCUMENT_REGISTRY_schema(AbsModel):
 	DOCUMENT_REGISTRY_ID: int = -1
 	METATABLE_ID: int 
 	CREATE_USER_ID: int 
@@ -156,12 +131,7 @@ class DOCUMENT_REGISTRY_schema(BaseModel):
 	CLOUD_UPLOAD_VERSION: int | None = None
 	DOCUMENT_TYPE_ID_CACHE: int | None = None
 
-class DOCUMENT_OUT_HEADER_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class DOCUMENT_OUT_HEADER_schema(AbsModel):
 	DOCUMENT_OUT_HEADER_ID: int = -1
 	DOCUMENT_OUT_TREE_ID: int | None = None
 	DOCUMENT_REGISTRY_ID: int
@@ -180,12 +150,7 @@ class DOCUMENT_OUT_HEADER_schema(BaseModel):
 	DOCUMENT_MARKING_STAGE: str | None = None
 	DOCUMENT_MARKING_REASON: str | None = None
 
-class DOCUMENT_ACTION_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class DOCUMENT_ACTION_schema(AbsModel):
 	DOCUMENT_ACTION_ID: int = -1
 	DOCUMENT_REGISTRY_ID: int 
 	USER_ID: int 
@@ -193,12 +158,7 @@ class DOCUMENT_ACTION_schema(BaseModel):
 	STATE: int 
 	SUMMA: Decimal | None = None 
 
-class DOCUMENT_OUT_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class DOCUMENT_OUT_schema(AbsModel):
 	DOCUMENT_OUT_ID: int = -1
 	DOCUMENT_TYPE_ID: int 
 	DOCUMENT_IN_ID: int | None = None 
@@ -224,23 +184,13 @@ class DOCUMENT_OUT_schema(BaseModel):
 	SUMMA_BONUS: Decimal | None = None
 	ROUND_VALUE: int | None = None
 
-class DOCUMENT_RETURN_PVD_DETAIL_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class DOCUMENT_RETURN_PVD_DETAIL_schema(AbsModel):
 	DOCUMENT_RETURN_PVD_DETAIL_ID: int = -1
 	DOCUMENT_OUT_HEADER_ID: int 
 	REASON: str
 	ATTORNEY_NUMBER: str | None = None 
 
-class GOODS_OUT_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class GOODS_OUT_schema(AbsModel):
 	GOODS_OUT_ID: int = -1
 	GOODS_IN_ID: int  
 	DOCUMENT_OUT_ID: int 
@@ -261,12 +211,7 @@ class GOODS_OUT_schema(BaseModel):
 	REQUEST_EMPLOYEE_ID: int | None = None 
 	CONFIRMATION_EMPLOYEE_ID: int | None = None 
 
-class GOODS_IN_schema(BaseModel):
-	model_config = ConfigDict(
-		exclude_none=True,
-		arbitrary_types_allowed=True
-	)
-
+class GOODS_IN_schema(AbsModel):
 	GOODS_IN_ID: int = -1
 	GOODS_IN_OLD_ID: int | None = None 
 	GOODS_IN_PREV_ID: int | None = None 
@@ -281,4 +226,3 @@ class GOODS_IN_schema(BaseModel):
 	GOODS_NOTES: str | None = None 
 	IS_SALED: int | None = 0
 	POSITION_NUMBER: int 
-
