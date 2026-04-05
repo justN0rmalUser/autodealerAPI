@@ -2,90 +2,126 @@ from fdb import DataError
 
 from typing import Literal, Self, Optional
 from pypika import Query, Table
-from pypika.functions import CurDate
 from fdb import Cursor
-
-from ..build_types.models import AcceptedTables
 
 
 class TableRow:
     """Класс, философия которого - 1 экземпляр = 1 запись в базе данных"""
-    def __init__(self, cursor: Cursor, NAME: str) -> None:
+    def __init__(self, cursor: Cursor, NAME: str, PK_ID: Optional[int] = None) -> None:
         self._cursor = cursor
         self.NAME: str = NAME
-        self.PK_ID: Optional[int] = None
-        
-        
+        self.PK_ID: int | None = PK_ID
+
+
     @property
-    def PRIMARY_KEY(self) -> str:
+    def PK(self):
         return f"{self.NAME}_ID"
-
-    @staticmethod
-    def find(cursor: Cursor, schema: AcceptedTables, condition) -> tuple[Self]:
-        if not condition:
-            raise Exception("Условия пустые")
-
-        abs_obj = TableRow(cursor, schema.name)
-
-        table = Table(abs_obj.NAME)
-        query = Query.from_(table).select(table.star).where(condition)
-        
-        result = cursor.execute(str(query)).fetchall()
-
-        if not result:
-            raise DataError("Такой записи не существует!")
-            
-        return result
     
+    @property
+    def GEN(self):
+        return f"GEN_{self.NAME}"
+
+
+    def get_attributes(self, *fields):
+        q = Query.from_(
+            t := Table(self.NAME)
+        ).select(
+            *fields
+        ).where(
+            t.field(self.PK) == self.PK_ID
+        )
+
+        attributes = self._cursor.execute(str(q)).fetchone()
+        
+        if attributes is None:
+            raise AttributeError("Таких полей не существует")
+        return zip(fields, attributes)
+
+    
+    def update_attributes(self, **fields):
+        q = Query.update(
+            t := Table(self.NAME)
+        ).where(
+            t.field(self.PK) == self.PK_ID
+        )
+
+        for key, field in fields.items():
+            q = q.set(key, field)
+
+        self._cursor.execute(str(q))
+        
 
     @classmethod
-    def load(cls, cursor: Cursor, schema: AcceptedTables, *, exist_ID: int | None) -> Self:
-        obj = cls(cursor, schema.name)
-        table = Table(obj.NAME)
-        
-        if exist_ID:
-            obj.PK_ID = exist_ID
-        else:
+    def load(cls, cursor: Cursor, table: str, ID: int | None) -> Self:
+        # Инициализация объекта
+        obj = cls(
+            cursor, 
+            table,
+            ID
+        )
+
+        # Установление ID, если не задан
+        if ID is None:
             obj.PK_ID = obj._gen_id("last")
-            
-        query = Query.from_(table).select(table.star).where(table.field(obj.PRIMARY_KEY) == obj.PK_ID)
+
+        # Поиск записи
+        result = cursor.execute(
+            obj.__oldRow_query()
+        ).fetchone()
         
-        result = cursor.execute(str(query)).fetchone()
-        
+        # Проверка на существование
         if not result:
             raise DataError("Такой записи не существует!")
 
+        # Возврат записи в бд для работы с ней
         return obj
 
 
     @classmethod
-    def new(cls, cursor: Cursor, schema: AcceptedTables, *, valid_data: dict) -> Self:
-        obj = cls(cursor, schema.name)
+    def new(cls, cursor: Cursor, table: str, data: dict) -> Self:
+        obj = cls(
+            cursor, 
+            table
+        )
+        
         obj.PK_ID = obj._gen_id("new")
+        obj._cursor.execute(obj.__newRow_query(data))
 
-        valid_data[obj.PRIMARY_KEY] = obj.PK_ID
-        if valid_data[obj.PRIMARY_KEY] != -1:
-            table = Table(obj.NAME)
-            query = Query.into(table).columns(
-                tuple(valid_data.keys())
-            ).insert(
-                tuple(valid_data.values())
-            )
-        else:
-            raise ValueError("Первичный ключ модели не изменен с -1")
-        
-        cursor.execute(query)
-        
         return obj
 
     
     def _gen_id(self, mode: Literal["new", "last"]) -> int:
         if mode == "new": 
-            request = f"SELECT NEXT VALUE FOR GEN_{self.NAME} FROM RDB$DATABASE"
+            request = f"SELECT NEXT VALUE FOR {self.GEN} FROM RDB$DATABASE"
         elif mode == "last":
-            request = f"SELECT GEN_ID(GEN_{self.NAME}, 0) FROM RDB$DATABASE"
+            request = f"SELECT GEN_ID({self.GEN}, 0) FROM RDB$DATABASE"
             
         response = self._cursor.execute(request).fetchone()
         if response is None:
-            raise ValueError(f"Не удалось получить идентификатор для таблицы '{self.NAME}'")
+            raise ValueError(f'Не удалось получить идентификатор для таблицы "{self.GEN}"')
         return int(response[0])
+    
+
+    def __newRow_query(self, data: dict):
+        data[self.PK] = self.PK_ID
+        
+        query = Query.into(
+            Table(self.NAME)
+        ).columns(
+            tuple(data.keys())
+        ).insert(
+            tuple(data.values())
+        )
+
+        return str(query)
+    
+    def __oldRow_query(self):
+        query = Query.from_(
+            table := Table(self.NAME)
+        ).select(
+            table.star
+        ).where(
+            table.field(self.PK) == self.PK_ID
+        )
+
+        return str(query)

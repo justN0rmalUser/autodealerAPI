@@ -1,39 +1,19 @@
-from autodealerAPI.core.build_types.types.schemas.product_schema import Product
-from typing import overload
-from autodealerAPI.core.build_types.models import AcceptedTables
+from pypika import Query, Table
 
+fields = {"a":1,"b":2}
 
-class Build:
-    @overload
-    def table(schema: AcceptedTables, data: dict): ...
-    @overload
-    def table(schema: AcceptedTables, data: str): ...
+q = Query.update(
+    t := Table("selfNMAE")
+).set("AAA", 12).where(
+    t.field(1) == 1
+)
 
-    @staticmethod
-    def table(schema: AcceptedTables, data: dict | str):
-        if isinstance(data, dict):
-            validated_model = schema.value.model_validate(data)
-            return validated_model.model_dump(exclude_none=True)
-        validated_model = schema.value.model_validate_json(data)
-        return validated_model.model_dump_json(exclude_none=True)
+for i in 0,1,2:
+    q = q.set("AAA", 12)
 
+q.where(
+    t.field(1) == 1
+)
 
-    @overload
-    def product(schema: Product, data: dict): ...
-    @overload
-    def product(schema: Product, data: str): ...
+print(str(q))
 
-    @staticmethod
-    def product(schema: Product, data: dict | str):
-        if isinstance(data, dict):
-            validated_model = schema.model_validate(data)
-            return validated_model.model_dump(exclude_none=True)
-        validated_model = schema.model_validate_json(data)
-        return validated_model.model_dump_json(exclude_none=True)
-
-
-class BuildedTable:
-    def __init__(self):
-        pass
-
-print(Build.table(AcceptedTables.SHOP_NOMENCLATURE_ATTRIBUTE, {"DIRECTORY_REGISTRY_ID":'a'}))
