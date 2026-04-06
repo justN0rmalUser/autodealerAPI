@@ -22,7 +22,7 @@ class TableRow:
         return f"GEN_{self.NAME}"
 
 
-    def get_attributes(self, *fields):
+    def get_attributes(self, *fields) -> list[tuple[str, str]]:
         q = Query.from_(
             t := Table(self.NAME)
         ).select(

@@ -8,7 +8,7 @@ Firebird Database Wrapper Library.
 # 1. МЕТАДАННЫЕ ПАКЕТА
 # -----------------------------------------------------------------------------
 # Версию лучше хранить здесь или в pyproject.toml. Для явности оставим здесь.
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 # -----------------------------------------------------------------------------
 # 2. ИМПОРТ ПУБЛИЧНОГО API
 # -----------------------------------------------------------------------------
@@ -21,6 +21,8 @@ try:
     from .config import DatabaseConfig
     from .exceptions.config_exceptions import IncompleteConfigurationError
     from .core.build_types.models import AcceptedTables
+    from .core.build_types.builder import Build
+    from .core.build_types.types.schemas.product_schema import Product
 except ImportError as e:
     # Принцип "Надежность": если библиотека сломана при импорте, мы должны об этом знать четко.
     # Но не скрываем ошибку, а пробрасываем её с контекстом.
@@ -37,5 +39,7 @@ __all__ = [
     "Connection",
     "Transaction",
     "DatabaseConfig",
-    "AcceptedTables"
+    "AcceptedTables",
+    "Build",
+    "Product"
 ]

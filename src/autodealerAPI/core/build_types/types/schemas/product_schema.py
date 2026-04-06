@@ -14,6 +14,8 @@ class Product(BaseModel):
     code: str = Field(default_factory=std.code)
     count: float = Field(gt=0)
     price: float = Field(gt=0)
+    goods_in_id: int = Field(default=None, gt=0)
+    shop_nom_id: int = Field(default=None, gt=0)
 
     
     @computed_field

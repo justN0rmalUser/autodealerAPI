@@ -19,6 +19,8 @@ class TransactionBasic:
             # TODO logging
             raise
         
+    def timestamp(self):
+        return datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
     
     def new(self, cursor: Cursor, *, schema: Build) -> TableRow:
         table_name, data = schema
@@ -37,9 +39,9 @@ class TransactionLow(TransactionBasic):
         data = {
             "METATABLE_ID": 12,
             "CREATE_USER_ID": 1,
-            "CREATE_DATE": datetime.now().date(),
+            "CREATE_DATE": self.timestamp(),
             "CHANGE_USER_ID": 1,
-            "CHANGE_DATE": datetime.now().date(),
+            "CHANGE_DATE": self.timestamp(),
             "DOCUMENT_TYPE_ID_CACHE": 7
         }
         builded_table = Build.table(schema=Table.DOCUMENT_REGISTRY, data=data)
@@ -54,7 +56,7 @@ class TransactionLow(TransactionBasic):
             "ORGANIZATION_REQUISITE_ID": 2,
             "CLIENT_ID": partner_id,
             "SUMMA": summa,
-            "DATE_ACCEPT": datetime.now().date(),
+            "DATE_ACCEPT": self.timestamp(),
             "FLAG": 1
         }
         builded_table = Build.table(schema=Table.DOCUMENT_OUT, data=data)
@@ -68,7 +70,7 @@ class TransactionLow(TransactionBasic):
             "DOCUMENT_TYPE_ID": 7,
             "USER_ID": 1,
             "NUMBER": number,
-            "DATE_CREATE": datetime.now(),
+            "DATE_CREATE": self.timestamp(),
             "STATE": 2,
             "MANAGER_ID": 1,
             "BARCODE": '20000004'
@@ -81,7 +83,7 @@ class TransactionLow(TransactionBasic):
         data = {
             "DOCUMENT_REGISTRY_ID": doc_reg,
             "USER_ID": 1,
-            "ACTION_DATETIME": datetime.now(),
+            "ACTION_DATETIME": self.timestamp(),
             "STATE": 4
         }
         builded_table = Build.table(schema=Table.DOCUMENT_ACTION, data=data)
@@ -150,11 +152,15 @@ class TransactionHigh:
         
         # получение значения NUMBER
         temp_cur = self._trans._cursor()
-        req = temp_cur.execute('SELECT MAX("NUMBER") + 1 FROM DOCUMENT_OUT_HEADER WHERE DOCUMENT_TYPE_ID = 7').fetchone()
+
+        req = temp_cur.execute(
+            'SELECT COALESCE(MAX("NUMBER"), 0) + 1 FROM DOCUMENT_OUT_HEADER WHERE DOCUMENT_TYPE_ID = 7'
+        ).fetchone()
+        
         temp_cur.close()
         if not req:
             raise ValueError("Номер документа не найден")
-        num = req[0]
+        num = int(req[0])
         
         # Карго
         DocCargo = self._trans.new_document_cargo(
@@ -193,61 +199,76 @@ class TransactionHigh:
         GET_GOODSIN = """
         SELECT
             GIN.GOODS_IN_ID, 
-            GIN.SHOP_NOMENCLATURE_ID, 
-            GIN.GOODS_COUNT
+            GIN.SHOP_NOMENCLATURE_ID 
         FROM GOODS_IN AS GIN
         INNER JOIN SHOP_NOMENCLATURE USING(SHOP_NOMENCLATURE_ID)
         WHERE PRODUCER_ID = ? AND (SEARCH_VALUE_NUMBER_MANUFACTURE = ? OR CODE = ?) AND IS_SALED = 0
         ORDER BY GIN.GOODS_IN_ID DESC, GIN.SHOP_NOMENCLATURE_ID DESC;
         """
+
+        GET_FREE_CELLS = """
+        SELECT 
+            COALESCE(SUM(GIN.GOODS_COUNT), 0) - COALESCE(SUM(GOT.GOODS_COUNT), 0) CELLS 
+        FROM GOODS_OUT GOT
+        RIGHT JOIN GOODS_IN GIN USING(GOODS_IN_ID)
+        WHERE GIN.GOODS_IN_ID = ?
+        """
         
-        products = []
-        for product in map(Build.product, raw_products):
-            req = cursor.execute(
+        mathed_products = []
+        for raw in raw_products:
+            # Поиск возможных товаров
+            product = Build.product(raw)
+
+            candidates = cursor.execute(
                 GET_GOODSIN, 
-                (
-                    product["firm_id"], 
-                    product["code"], 
-                    product["code"]
-                )
+                (product["firm_id"], product["code"], product["code"])
             ).fetchall()
             
-            if req is None:
-                raise("Ничего не найдено")
+            # если никакие товары не были найдены -> ошибка в товаре или программе
+            if not candidates:
+                raise Exception("Ничего не найдено")
             
-            good_found = False
-            for goods_in, shop_nom_id, free_count in req:
-                if product["count"] <= free_count:
-                    products.append(
-                        (
-                            goods_in,
-                            shop_nom_id,
-                            product["price"],
-                            product["count"]
-                        )
+            for goods_in_id, shop_nom_id in candidates:
+                # поиск первого подходящего товара
+                remainder = int(cursor.execute(GET_FREE_CELLS, (goods_in_id, )).fetchone()[0]) # значение как минимум нуль
+                
+                if product["count"] <= remainder:                    
+                    mathed_products.append(
+                        {
+                            "goods_in_id": int(goods_in_id), 
+                            "shop_nom_id": int(shop_nom_id),
+                            "count": product["count"],
+                            "price": product["price"],
+                            "is_sold_out": product["count"] == remainder # Распродан ли
+                        }
                     )
-                    good_found = True
                     break
-
-            if not good_found:
-                raise Exception("Никакой товар не подошел")
+            else:
+                raise Exception("Доступного остатка товара недостаточно для выполнения операции")
+                
 
         docs = []
-        for i, product in enumerate(products, start=1):
-            goods_in, shop_nom_id, price, count = product
+        for i, product in enumerate(mathed_products, start=1):
             docs.append(
                 self._trans.new_goods_out(
-                    good_in=goods_in,
+                    good_in=product["goods_in_id"],
                     doc_out=doc_out_id, 
-                    shop_nom=shop_nom_id, 
-                    price=price, 
-                    count=count, 
+                    shop_nom=product["shop_nom_id"], 
+                    price=product["price"], 
+                    count=product["count"],
                     pos=i
                 )
             )
-        DocHead = self._trans.load(cursor, "DOCUMENT_OUT_HEADER", ID=doc_out_head_id)
+            if product["is_sold_out"]:
+                goods_in = self._trans.load(cursor, Table.GOODS_IN.name, product["goods_in_id"])
+                goods_in.update_attributes(IS_SALED=1)
+
+
+        DocHead = self._trans.load(cursor, Table.DOCUMENT_OUT_HEADER.name, ID=doc_out_head_id)
         DocHead.update_attributes(STATE=4)
-        
+
+        cursor.close()
+
         return docs
         
 

@@ -33,6 +33,11 @@ class Connection:
             return con
 
 
+    def close(self) -> None:
+        if not self.__connect.closed:
+            self.__connect.close()
+
+
     def transaction(self) -> Transaction:
         """Открытие транзакции, в контексте которой будут выполняться команды
 
@@ -42,7 +47,7 @@ class Connection:
         Returns:
             Transaction: Класс транзакции для взаимодействия с внутренними командами
         """
-        if not self.__connect.closed:
+        if self.__connect.closed:
             raise ConnectionError("Отсутствует подключение к основной базе данных")
         return Transaction(self.__connect)
     
@@ -64,6 +69,9 @@ class Connection:
         Returns:
             Контекстный менеджер
         """
+        if self.__connect.closed:
+            raise ConnectionError("Отсутствует подключение к основной базе данных")
+        
         tr = Transaction(self.__connect)
         if type_api == "high":
             return tr.start_transaction(type_api="high", read_only=read_only)

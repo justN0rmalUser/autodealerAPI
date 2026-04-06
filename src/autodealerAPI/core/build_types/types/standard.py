@@ -11,6 +11,7 @@ class std:
         """
         Ищет ID поставщика деталей
         """
+        value = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]", '', value.upper())
         result = fmt_firm.get(value)
         if result is None:
             raise ValueError("ID фирмы не найдено")
@@ -18,6 +19,7 @@ class std:
     
     @classmethod
     def code(cls, value: str) -> str:
+        value = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]", '', value.upper())
         result = fmt_code.get(value, value)
         return result
     
