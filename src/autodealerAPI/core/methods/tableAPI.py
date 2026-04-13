@@ -2,6 +2,7 @@ from fdb import DataError
 
 from typing import Literal, Self, Optional
 from pypika import Query, Table
+from pypika.terms import LiteralValue
 from fdb import Cursor
 
 
@@ -85,6 +86,11 @@ class TableRow:
             table
         )
 
+        result = cursor.execute(
+            obj.__oldRow_query(condition)
+        ).fetchone()
+
+
 
     @classmethod
     def new(cls, cursor: Cursor, table: str, data: dict) -> Self:
@@ -124,13 +130,20 @@ class TableRow:
 
         return str(query)
     
-    def __oldRow_query(self):
+    def __oldRow_query(self, criterion: str | None = None):
         query = Query.from_(
             table := Table(self.NAME)
         ).select(
             table.star
-        ).where(
-            table.field(self.PK) == self.PK_ID
         )
+
+        if criterion is None:
+            query = query.where(
+                table.field(self.PK) == self.PK_ID
+            )
+        else:
+            query = query.where(
+                LiteralValue(criterion)
+            )
 
         return str(query)
