@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autodealer-api"             # Имя для PyPI (рекомендуется использовать дефисы)
-version = "0.1.4"                   # Версия пакета (можно управлять через git tags)
+version = "0.1.5"                   # Версия пакета (можно управлять через git tags)
 description = "Firebird Database Wrapper Library"
 readme = "README.md"                # Файл с описанием (необходимо создать)
 requires-python = ">=3.13"          # Минимальная версия Python

@@ -78,6 +78,15 @@ class TableRow:
 
 
     @classmethod
+    def find(cls, cursor: Cursor, table: str, condition: str) -> Self:
+        # Инициализация объекта
+        obj = cls(
+            cursor, 
+            table
+        )
+
+
+    @classmethod
     def new(cls, cursor: Cursor, table: str, data: dict) -> Self:
         obj = cls(
             cursor, 

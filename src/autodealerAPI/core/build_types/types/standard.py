@@ -1,30 +1,17 @@
-from pydantic import BaseModel
-from decimal import Decimal
 import re
 
 from ....utils.dop_data.fmt_FirmCode import fmt_code, fmt_firm
 
 
-class std:    
+class std:
     @classmethod
-    def firm(cls, value: str) -> int:
-        """
-        Ищет ID поставщика деталей
-        """
+    def text(cls, value: str) -> str:
         value = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]", '', value.upper())
-        result = fmt_firm.get(value)
-        if result is None:
-            raise ValueError("ID фирмы не найдено")
-        return result
+        return value
+
     
     @classmethod
-    def code(cls, value: str) -> str:
-        value = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]", '', value.upper())
-        result = fmt_code.get(value, value)
-        return result
-    
-    @classmethod
-    def price(cls, value: str | float) -> float:
+    def numeric(cls, value: str | float | int) -> float | int:
         """Цена товара
 
         Args:
@@ -34,7 +21,7 @@ class std:
             TypeError: При недопустимом типе
 
         Returns:
-            Decimal: готовая для бд запись
+            float: готовая для бд запись
         """
         if isinstance(value, str):
             result: str = value.replace(',', '.')
@@ -42,32 +29,11 @@ class std:
             return float(result)
         elif isinstance(value, float):
             return float(value)
-        raise TypeError("Не подходящий тип значения! Допустимые: str | float!")
-        
-    @classmethod
-    def count(cls, value: str | int | float) -> int:
-        """Количество товара
-
-        Args:
-            value (str | float | int): Значение количества
-
-        Raises:
-            TypeError: При недопустимом типе
-
-        Returns:
-            Decimal: готовая для бд запись
-            int: уже преобразованный тип, просто пробрасывается
-        """
-        if isinstance(value, str):
-            result: str = value.replace(',', '.')
-            result: str = re.sub(r"/[^0-9.]/g", '', value)
-            return float(result)
         elif isinstance(value, int):
             return value
-        else:
-            return value
-        raise TypeError("Не подходящий тип значения! Допустимые: str | float | int!")
-    
+        raise TypeError("Не подходящий тип значения! Допустимые: str | float!")
+
+
     @classmethod
     def name(cls, value: str) -> str:
         value = value.lower().strip()

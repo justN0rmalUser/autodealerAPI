@@ -7,6 +7,9 @@ from ..build_types.models import AcceptedTables as Table
 from ..build_types.builder import Build
 from datetime import datetime
 
+import warnings
+
+
 
 class TransactionBasic:
     def __init__(self, transaction: fdb.Transaction) -> None:
@@ -198,12 +201,10 @@ class TransactionHigh:
 
         GET_GOODSIN = """
         SELECT
-            GIN.GOODS_IN_ID, 
-            GIN.SHOP_NOMENCLATURE_ID 
+            GIN.GOODS_IN_ID
         FROM GOODS_IN AS GIN
-        INNER JOIN SHOP_NOMENCLATURE USING(SHOP_NOMENCLATURE_ID)
-        WHERE PRODUCER_ID = ? AND (SEARCH_VALUE_NUMBER_MANUFACTURE = ? OR CODE = ?) AND IS_SALED = 0
-        ORDER BY GIN.GOODS_IN_ID DESC, GIN.SHOP_NOMENCLATURE_ID DESC;
+        WHERE GIN.SHOP_NOMENCLATURE_ID = ? AND IS_SALED = 0
+        ORDER BY GIN.GOODS_IN_ID DESC;
         """
 
         GET_FREE_CELLS = """
@@ -215,36 +216,40 @@ class TransactionHigh:
         """
         
         mathed_products = []
-        for raw in raw_products:
-            # Поиск возможных товаров
-            product = Build.product(raw)
+        for product in map(Build.product, raw_products):            
+            if product["shop_nom_id"] is None:
+                raise Exception(f"Такой товар не найден: {product}")
+                
+            candidates_goods_in = cursor.execute(GET_GOODSIN, (product["shop_nom_id"], )).fetchall()
+            if bool(candidates_goods_in):
+                candidates_goods_in = [item[0] for item in candidates_goods_in]
+                print(candidates_goods_in, product["shop_nom_id"])
+            else:
+                raise Exception("никакие GOODS_IN_ID не найдены")
 
-            candidates = cursor.execute(
-                GET_GOODSIN, 
-                (product["firm_id"], product["code"], product["code"])
-            ).fetchall()
-            
-            # если никакие товары не были найдены -> ошибка в товаре или программе
-            if not candidates:
-                raise Exception("Ничего не найдено")
-            
-            for goods_in_id, shop_nom_id in candidates:
+
+
+            for goods_in_id in candidates_goods_in:
+                goods_in_id = goods_in_id[0]
+
                 # поиск первого подходящего товара
                 remainder = int(cursor.execute(GET_FREE_CELLS, (goods_in_id, )).fetchone()[0]) # значение как минимум нуль
+                print(remainder, product["count"], goods_in_id, flush=True)
                 
-                if product["count"] <= remainder:                    
+                if product["count"] <= remainder:
                     mathed_products.append(
                         {
                             "goods_in_id": int(goods_in_id), 
-                            "shop_nom_id": int(shop_nom_id),
+                            "shop_nom_id": product["shop_nom_id"],
                             "count": product["count"],
                             "price": product["price"],
-                            "is_sold_out": product["count"] == remainder # Распродан ли
+                            "is_sold_out": int(product["count"]) == remainder # Распродан ли
                         }
                     )
                     break
+                raise Exception(f"Доступного остатка товара недостаточно для выполнения операции | {product["shop_nom_id"]}, {product["count"]}, {remainder}")
             else:
-                raise Exception("Доступного остатка товара недостаточно для выполнения операции")
+                raise Exception("Доступного остатка товара недостаточно для выполнения операции.")
                 
 
         docs = []
