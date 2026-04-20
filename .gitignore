@@ -1,4 +1,3 @@
 *.pyc
 *.egg*
 dist/*
-tests/hand_test/example.py

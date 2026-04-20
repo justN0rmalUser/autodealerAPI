@@ -1,7 +1,9 @@
-import Levenshtein
-from itertools import product
-from .dop_data.tree_synonyms import Synonyms
 from dataclasses import dataclass
+from itertools import product
+
+import Levenshtein
+
+from autodealerAPI.utils.literals.tree_synonyms import Synonyms
 
 
 @dataclass
@@ -17,40 +19,44 @@ def store_attribute(name: str) -> int:
     # Подготовка текста
     if not name:
         return 82
-    
+
     name = name.lower().strip()
     word_list = name.split()[:4]
-        
-    
+
+
     # Все возможные комбинации без копии элементов
-    temp_elements = _check_ratio(word_list, Synonyms.word_1_dict, GOOD_PERC.ONE)
-        
+    temp_elements = _check_ratio(
+        word_list,
+        Synonyms.word_1_dict,
+        GOOD_PERC.ONE
+    )
+
     if len(word_list) >= 2:
         twos_list = [_iter_to_str(element) for element in _delete_copyies(list(product(word_list, repeat=2)), 2)]
         temp_elements.extend(
             _check_ratio(
-                twos_list, 
-                Synonyms.word_2_dict, 
+                twos_list,
+                Synonyms.word_2_dict,
                 GOOD_PERC.TWO
             )
         )
-    
+
     if len(word_list) >= 3:
         thirds_list = [_iter_to_str(element) for element in _delete_copyies(list(product(word_list, repeat=3)), 3)]
         temp_elements.extend(
             _check_ratio(
-                thirds_list, 
-                Synonyms.word_3_dict, 
+                thirds_list,
+                Synonyms.word_3_dict,
                 GOOD_PERC.THREE
             )
         )
-    
+
     if len(word_list) == 4:
         fourths_list = [_iter_to_str(element) for element in _delete_copyies(list(product(word_list, repeat=4)), 4)]
         temp_elements.extend(
             _check_ratio(
-                fourths_list, 
-                Synonyms.word_4_dict, 
+                fourths_list,
+                Synonyms.word_4_dict,
                 GOOD_PERC.FOUR
             )
         )
@@ -61,7 +67,7 @@ def store_attribute(name: str) -> int:
         if ratio >= GOOD_PERC.INSTANT_RETURN:
             return tree_id
         all_elements.append(tree_id)
-        
+
     max_tree_id_count: int = 0
     most_likely_tree_id: int = 82
 
@@ -69,19 +75,19 @@ def store_attribute(name: str) -> int:
         if all_elements.count(el) > max_tree_id_count:
             max_tree_id_count = all_elements.count(el)
             most_likely_tree_id = el
-        
+
     return most_likely_tree_id
 
-        
+
 def _delete_copyies(lst, couple_count):
     death_note = []
-    for i in range(len(lst)):
-        if len(set(lst[i])) < couple_count:
+    for i, val in enumerate(lst):
+        if len(set(val)) < couple_count:
             death_note.append(i)
-        
+
     for enemy in sorted(death_note, reverse=True):
         del lst[enemy]
-    
+
     return tuple(lst)
 
 def _iter_to_str(iterator):
@@ -94,7 +100,7 @@ def _iter_to_str(iterator):
 
 def _check_ratio(compared: list[str], pattern: dict[str, int], good_percent: float) -> list[tuple[float, int]]:
     match = []
-    
+
     for variant in compared:
         # print(variant)
         for key_word in pattern:
@@ -105,5 +111,5 @@ def _check_ratio(compared: list[str], pattern: dict[str, int], good_percent: flo
                 match.append(
                     (ratio, pattern[key_word])
                 )
-                    
+
     return match

@@ -1,8 +1,14 @@
-from types import TracebackType
-import fdb
-from typing import Literal, Optional, Type, Generic, TypeVar, overload
 from contextlib import AbstractContextManager
-from ..methods.transactionAPI import TransactionLow, TransactionHigh, TransactionBasic
+from types import TracebackType
+from typing import Generic, Literal, Optional, Type, TypeVar, overload
+
+import fdb
+
+from autodealerAPI.core.methods.service import (
+    TransactionBasic,
+    TransactionHigh,
+    TransactionLow,
+)
 
 
 T = TypeVar('T', TransactionHigh, TransactionLow, TransactionBasic)
@@ -14,8 +20,8 @@ class TransactionSession(AbstractContextManager, Generic[T]):
     Обеспечивает атомарность операций и корректное закрытие ресурсов.
     """
     def __init__(
-        self, 
-        transaction: fdb.Transaction, 
+        self,
+        transaction: fdb.Transaction,
         api: T,
         read_only: bool
     ) -> None:
@@ -35,10 +41,10 @@ class TransactionSession(AbstractContextManager, Generic[T]):
         return self._api
 
     def __exit__(
-        self, 
-        exc_type: Optional[Type[BaseException]], 
-        exc_val: Optional[BaseException], 
-        exc_tb: Optional[TracebackType] 
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType]
     ) -> Literal[False]:
         """
         Выход из контекста: фиксация или откат в зависимости от статуса выполнения.
@@ -57,7 +63,7 @@ class TransactionSession(AbstractContextManager, Generic[T]):
                 else:
                     self._transaction.commit()
                 self._transaction.close()
-        
+
         return False
 
 
@@ -65,7 +71,7 @@ class Transaction:
     def __init__(self, connection: fdb.Connection) -> None:
         self.__connection: fdb.Connection = connection
         self.__transaction = self.__create_transact()
-        
+
 
     def __create_transact(self) -> fdb.Transaction:
         try:
@@ -96,7 +102,7 @@ class Transaction:
             raise ConnectionAbortedError("Соединение закрыто, создание транзакции невозможно!")
         if self.__transaction.closed:
             raise ConnectionAbortedError("Транзакция закрыта, выполнение методов невозможно!")
-            
+
         if type_api == "high":
             return TransactionSession[TransactionHigh](
                 transaction=self.__transaction,
@@ -115,5 +121,3 @@ class Transaction:
                 api=TransactionBasic(self.__transaction),
                 read_only=read_only
             )
-        
-        

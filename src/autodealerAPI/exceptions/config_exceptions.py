@@ -1,11 +1,10 @@
 from typing import Any, List, Optional
-from abc import ABC
 
 
 class ConfigurationError(BaseException):
     """
     Базовое исключение для всех ошибок, связанных с конфигурацией.
-    
+
     Используется как корневой класс для специфических исключений конфигурации.
     """
     pass
@@ -13,7 +12,7 @@ class ConfigurationError(BaseException):
 
 class ConfigurationNotProvidedError(ConfigurationError):
     """Исключение возникает, когда конфигурация не была передана в класс или метод.
-    
+
     Атрибуты:
         message (str): Сообщение об ошибке.
     """
@@ -25,7 +24,7 @@ class ConfigurationNotProvidedError(ConfigurationError):
 class IncompleteConfigurationError(ConfigurationError):
     """
     Исключение возникает, когда конфигурация не содержит обязательных полей.
-    
+
     Attributes:
         missing_keys (List[str]): Список отсутствующих ключей.
         message (str): Сообщение об ошибке.
@@ -43,7 +42,7 @@ class IncompleteConfigurationError(ConfigurationError):
 class InvalidConfigurationValueError(ConfigurationError):
     """
     Исключение возникает, когда значение конфигурации имеет недопустимый тип или формат.
-    
+
     Атрибуты:
         key (str): Ключ конфигурации, вызвавший ошибку.
         expected_type (Any): Ожидаемый тип данных.
@@ -63,7 +62,7 @@ class InvalidConfigurationValueError(ConfigurationError):
 class ConfigurationFileNotFoundError(ConfigurationError):
     """
     Исключение возникает, когда файл конфигурации не найден по указанному пути.
-    
+
     Атрибуты:
         path (str | Path): Путь к файлу с конфигурацией.
     """
@@ -76,7 +75,7 @@ class ConfigurationFileNotFoundError(ConfigurationError):
 class ConfigurationParsingError(ConfigurationError):
     """
     Исключение возникает при ошибке парсинга файла конфигурации (JSON, YAML и т.д.).
-    
+
     Attributes:
         reason (str): Причина ошибки парсинга.
     """

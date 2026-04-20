@@ -242,4 +242,3 @@ class Synonyms:
     word_2_dict: dict[str, int] = comb2
     word_3_dict: dict[str, int] = comb3
     word_4_dict: dict[str, int] = comb4
-    

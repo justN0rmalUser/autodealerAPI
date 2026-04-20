@@ -1,17 +1,14 @@
 import re
 
-from ....utils.dop_data.fmt_FirmCode import fmt_code, fmt_firm
-
 
 class std:
-    @classmethod
-    def text(cls, value: str) -> str:
+    @staticmethod
+    def text(value: str) -> str:
         value = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]", '', value.upper())
         return value
 
-    
-    @classmethod
-    def numeric(cls, value: str | float | int) -> float | int:
+    @staticmethod
+    def numeric(value: str | float | int) -> float | int:
         """Цена товара
 
         Args:
@@ -33,11 +30,9 @@ class std:
             return value
         raise TypeError("Не подходящий тип значения! Допустимые: str | float!")
 
-
-    @classmethod
-    def name(cls, value: str) -> str:
+    @staticmethod
+    def name(value: str) -> str:
         value = value.lower().strip()
         for el in "\\|/-;:":
             value = value.replace(el, '')
         return value
-        

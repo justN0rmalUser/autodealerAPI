@@ -1,5 +1,5 @@
 from enum import Enum
-from .types.schemas.tables_schema import *  # noqa: F403
+from autodealerAPI.core.types.schemas.tables_schema import *  # noqa: F403
 
 
 class AcceptedTables(Enum):
