@@ -20,9 +20,9 @@ try:
     from .core.connection.transactions import Transaction
     from .config import DatabaseConfig
     from .exceptions.config_exceptions import IncompleteConfigurationError
-    from .core.build_types.models import AcceptedTables
-    from .core.build_types.builder import Build
-    from .core.build_types.types.schemas.product_schema import Product
+    from .types.models import AcceptedTables
+    from .types.builder import Build
+    from .types.schemas.product_schema import Product
 except ImportError as e:
     # Принцип "Надежность": если библиотека сломана при импорте, мы должны об этом знать четко.
     # Но не скрываем ошибку, а пробрасываем её с контекстом.

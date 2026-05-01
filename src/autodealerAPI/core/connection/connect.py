@@ -63,7 +63,7 @@ class Connection:
         """Открытие транзакции "из коробки"
 
         Args:
-            type_api (Literal[&quot;high&quot;, &quot;low&quot;]): Уровень взаимодействия с бд
+            type_api (Literal["high", "low", "basic"]): Уровень взаимодействия с бд
             read_only (bool, optional): Тип транзакции. По умолчанию False.
 
         Returns:

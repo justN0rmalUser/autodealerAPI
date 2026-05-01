@@ -18,3 +18,23 @@ class Other:
     WHERE GIN.GOODS_IN_ID = ?
     """
     GET_NUMBER_FOR_DOC_OUT = 'SELECT COALESCE(MAX("NUMBER"), 0) + 1 FROM DOCUMENT_OUT_HEADER WHERE DOCUMENT_TYPE_ID = 7'
+    
+    
+
+@dataclass(frozen=True)
+class FindProduct:
+    GET_SNID_SQL = """SELECT SNID
+    FROM identify_product
+    FULL JOIN firm f USING(FIRM_ID)
+    inner join code c USING(CODE)
+    WHERE f.FORMATTED_NAME = ? AND c.FORMATTED_CODE = ?
+    ORDER BY SNID DESC
+    """
+
+    SEEK_FIRM_BY_RAW = "SELECT FIRM_ID FROM firm WHERE FORMATTED_NAME = ?"
+    SEEK_FIRM_BY_SNID = "SELECT FIRM_ID FROM identify_product WHERE SNID = ?"
+
+    SEEK_CODE_BY_RAW = "SELECT CODE FROM code WHERE FORMATTED_CODE = ?"
+    SEEK_CODE_BY_SNID = "SELECT CODE FROM identify_product WHERE SNID = ?"
+
+

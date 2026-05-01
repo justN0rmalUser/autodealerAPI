@@ -103,21 +103,22 @@ class Transaction:
         if self.__transaction.closed:
             raise ConnectionAbortedError("Транзакция закрыта, выполнение методов невозможно!")
 
-        if type_api == "high":
-            return TransactionSession[TransactionHigh](
-                transaction=self.__transaction,
-                api=TransactionHigh(self.__transaction),
-                read_only=read_only
-            )
-        if type_api == "low":
-            return TransactionSession[TransactionLow](
-                transaction=self.__transaction,
-                api=TransactionLow(self.__transaction),
-                read_only=read_only
-            )
-        if type_api == "basic":
-            return TransactionSession[TransactionBasic](
-                transaction=self.__transaction,
-                api=TransactionBasic(self.__transaction),
-                read_only=read_only
-            )
+        match type_api:
+            case "high":
+                return TransactionSession[TransactionHigh](
+                    transaction=self.__transaction,
+                    api=TransactionHigh(self.__transaction),
+                    read_only=read_only
+                )
+            case "low":
+                return TransactionSession[TransactionLow](
+                    transaction=self.__transaction,
+                    api=TransactionLow(self.__transaction),
+                    read_only=read_only
+                )
+            case "basic":
+                return TransactionSession[TransactionBasic](
+                    transaction=self.__transaction,
+                    api=TransactionBasic(self.__transaction),
+                    read_only=read_only
+                )

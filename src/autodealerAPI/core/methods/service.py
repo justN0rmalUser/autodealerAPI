@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Literal
+from time import sleep
 
 import fdb
 from fdb import Cursor
@@ -202,6 +203,7 @@ class TransactionLow(TransactionBasic):
 
     def new_goods_out(
         self,
+        cursor: Cursor,
         good_in: int,
         doc_out: int,
         shop_nom: int,
@@ -209,22 +211,22 @@ class TransactionLow(TransactionBasic):
         count: float,
         pos: int
     ):
-        cursor = self._cursor()
         data = {
             "GOODS_IN_ID": good_in,
             "DOCUMENT_OUT_ID": doc_out,
             "SHOP_NOMENCLATURE_ID": shop_nom,
             "COST": price,
+            "DISCOUNT": 0,
             "GOODS_COUNT": count,
             "GOODS_COUNT_FACT": count,
             "GUARANTE": 1,
             "POSITION_NUMBER": pos
         }
-        builded_table = Build.table(
+        table_name, valid_data = Build.table(
             schema=Table.GOODS_OUT,
             data=data
         )
-        return self.new(cursor, schema=builded_table)
+        return TableRow.new(cursor, table=table_name, data=valid_data)
 
 
 class TransactionHigh:
@@ -312,19 +314,23 @@ class TransactionHigh:
         Returns:
             list[int]: Список ID записей товаров
         """
-        cursor = self._trans._cursor()
+        update_cursor = cursor = self._trans._cursor()
 
         # matched_products - список обработанных значений; docs - созданные записи в БД
         matched_products: list[dict[str, int | bool]] = []
         docs = []
 
         for product in map(Build.product, raw_products):
+            print("Старт итерации")
             # Установка значений
+            print(product)
             candidates_goods_in: list[int] | None = self._get_goodsin(product["shop_nom_id"])
 
             # Проверка на наличие в БД сделанной записи
             if candidates_goods_in is None:
                 continue
+            
+            print(f"Кандидаты: {candidates_goods_in}")
 
             # поиск первого подходящего товара
             for goods_in_id in candidates_goods_in:
@@ -334,15 +340,18 @@ class TransactionHigh:
                 print(remainder, product["count"], goods_in_id, flush=True)  # Промежуток вывод
                 # Соответствует ли количество продукта необходимому остатку
                 if product["count"] <= remainder:
-                    matched_products.append(
-                        {
-                            "goods_in_id": goods_in_id,
-                            "shop_nom_id": product["shop_nom_id"],
-                            "count": product["count"],
-                            "price": product["price"],
-                            "is_sold_out": product["count"] == remainder
-                        }
-                    )
+                    print(f"{product["count"]} <= {remainder}")  # Промежуток вывод
+                    tproduct = {
+                        "goods_in_id": goods_in_id,
+                        "shop_nom_id": product["shop_nom_id"],
+                        "count": product["count"],
+                        "price": product["price"],
+                        "is_sold_out": product["count"] == remainder
+                    }
+                    print(tproduct)  # Промежуток вывод
+
+                    matched_products.append(tproduct)
+                    print("ДОбавлен")
                     break
             else:
                 # если ни одно значение не подошло, то ошибка
@@ -352,37 +361,43 @@ class TransactionHigh:
         if not matched_products:
             raise Exception("Документы пустые, все товары введены")
 
+        print("Старт добавления документов")
         # Внесение в БД
         for i, product in enumerate(matched_products, start=1):
             # Внесение в документ на позицию i
             docs.append(self._trans.new_goods_out(
-                    good_in=product["goods_in_id"],
-                    doc_out=doc_out_id,
-                    shop_nom=product["shop_nom_id"],
-                    price=product["price"],
-                    count=product["count"],
-                    pos=i
-                ).pk_id
-            )
+                cursor,
+                good_in=product["goods_in_id"],
+                doc_out=doc_out_id,
+                shop_nom=product["shop_nom_id"],
+                price=product["price"],
+                count=product["count"],
+                pos=i
+            ).pk_id)
+            
+            sleep(0.7)
+            print("Документ добавлен:", docs[i-1])
 
             # Обновление GOODS_IN если товар распродан
             if product["is_sold_out"]:
                 self._trans.load(
-                    cursor,
+                    update_cursor,
                     table_name=Table.GOODS_IN.name,
                     ID=product["goods_in_id"]
                 ).update_fields(
-                    IS_SALED=1
+                    IS_SALED=1,
                 )
 
         # Обновление DOCUMENT_OUT_HEADER
         self._trans.load(
-            cursor,
+            update_cursor,
             table_name=Table.DOCUMENT_OUT_HEADER.name,
             ID=doc_out_head_id
         ).update_fields(
-            STATE=4
+            STATE=4,
         )
+        
+        print("Успех")
 
         # Закрытие и возврат документов
         cursor.close()
@@ -472,7 +487,7 @@ class TransactionHigh:
             temp_cursor.execute(
                 Other.GET_FREE_CELLS,
                 (goods_in_id, )
-            ).fetchone()[0]             # type: ignore ## значение как минимум нуль
+            ).fetchone()[0]  # type: ignore ## значение как минимум нуль
         )
 
         # Закрытие курсора

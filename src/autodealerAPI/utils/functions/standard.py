@@ -24,9 +24,7 @@ class std:
             result: str = value.replace(',', '.')
             result: str = re.sub(r"/[^0-9.]/g", '', value)
             return float(result)
-        elif isinstance(value, float):
-            return float(value)
-        elif isinstance(value, int):
+        elif isinstance(value, float) or isinstance(value, int):
             return value
         raise TypeError("Не подходящий тип значения! Допустимые: str | float!")
 

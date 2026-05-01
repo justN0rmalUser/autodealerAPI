@@ -18,4 +18,5 @@ class Build:
     @staticmethod
     def product(data: dict) -> dict:
         validated_model = Product.model_validate(data)
-        return validated_model.model_dump(exclude_none=True)
+        print("Модель валидирована")
+        return validated_model.model_dump()

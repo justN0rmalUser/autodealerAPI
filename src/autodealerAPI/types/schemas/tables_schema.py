@@ -194,10 +194,10 @@ class GOODS_OUT_schema(AbsModel):
 	GOODS_IN_ID: int  
 	DOCUMENT_OUT_ID: int 
 	SHOP_NOMENCLATURE_ID: int 
-	COST: Decimal 
-	DISCOUNT: str 
-	GOODS_COUNT: Decimal 
-	GOODS_COUNT_FACT: Decimal 
+	COST: float 
+	DISCOUNT: int 
+	GOODS_COUNT: float 
+	GOODS_COUNT_FACT: float 
 	GOODS_COUNT_RETURN: Decimal | None = None
 	GUARANTE: int 
 	DISCOUNT_FIX: Decimal | None = None 
