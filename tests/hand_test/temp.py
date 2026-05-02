@@ -1,13 +1,3 @@
-from pypika import Query, Table
-from pypika.terms import Term, LiteralValue
+from autodealerAPI.config import __name__ as nam
 
-
-query = Query.from_(
-    table := Table("SDK")
-).select(
-    table.star
-).where(
-    LiteralValue("ID > NONES")
-)
-
-print(str(query))
+print(nam)

@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from pathlib import Path
 import json
 from configparser import ConfigParser
+import logging
 
 from .exceptions.config_exceptions import IncompleteConfigurationError
 
@@ -43,7 +44,6 @@ class DatabaseConfig(BaseModel):
     username: str
     password: str
 
-
     @classmethod
     def from_json(
         cls,
@@ -60,13 +60,13 @@ class DatabaseConfig(BaseModel):
             dict_cfg = json.load(f)
 
         config_data = _get_config(
-            dict_cfg, 
+            dict_cfg,
             path_key=path_key,
             user_key=user_key,
             pass_key=pass_key
         )
 
-        return cls(**config_data) # pyright: ignore[reportArgumentType]
+        return cls(**config_data)  # pyright: ignore[reportArgumentType]
 
     @classmethod
     def from_ini(
@@ -77,25 +77,52 @@ class DatabaseConfig(BaseModel):
         user_key: str,
         pass_key: str
     ) -> 'DatabaseConfig':
-        
+
         # Инициализация и алгоритм поиска
         raw_cfg = ConfigParser()
         raw_cfg.read(path)
         dict_cfg = {section: dict(raw_cfg.items(section)) for section in raw_cfg.sections()}
 
         config_data = _get_config(
-            dict_cfg, 
+            dict_cfg,
             path_key=path_key,
             user_key=user_key,
             pass_key=pass_key
         )
 
-        return cls(**config_data) # pyright: ignore[reportArgumentType]
+        return cls(**config_data)  # pyright: ignore[reportArgumentType]
 
     def __init__(
         self,
-        db_path: str = "C:\\Program Files (x86)\\AutoDealer\\AutoDealer\\Database\\AutoDealer.fdb",
+        db_path: str = "C:\\Program Files (x86)\\AutoDealer\\AutoDealer\\Database\\AutoDealer.fdb",  # ignore = E501
         username: str = "SYSDBA",
         password: str = "masterkey"
     ):
         super().__init__(db_path=db_path, username=username, password=password)
+
+
+def setup_logging(
+    log_file: str | Path,
+    level: int = logging.DEBUG
+):
+    filepath = Path(log_file) if not isinstance(log_file, Path) else log_file
+
+    if not filepath.is_file() or filepath.suffix != ".log":
+        raise FileNotFoundError("Путь не подходит")
+
+    formatter = logging.Formatter(
+        fmt="%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        filename=filepath,
+        encoding="utf-8"
+    )
+    file_handler.setFormatter(formatter)
+
+    lib_logger = logging.getLogger(__package__)
+    lib_logger.setLevel(level)
+    lib_logger.addHandler(file_handler)
+    lib_logger.propagate = False  # ⬅️ ключевая строка
+    return lib_logger

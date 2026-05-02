@@ -1,5 +1,5 @@
 """Модуль для подключения к базе данных и создания транзакций"""
-import fdb 
+import fdb
 from .transactions import Transaction
 from autodealerAPI.config import DatabaseConfig
 from typing import Literal, overload
@@ -13,12 +13,11 @@ class Connection:
     def __init__(self, config: DatabaseConfig) -> None:
         self.__cfg = config
         self.__connect = self.__create_connect()
-        
 
     def __create_connect(self) -> fdb.Connection:
         try:
             con = fdb.connect(
-                dsn=self.__cfg.db_path, 
+                dsn=self.__cfg.db_path,
                 user=self.__cfg.username,
                 password=self.__cfg.password
             )
@@ -27,7 +26,7 @@ class Connection:
             raise # TODO ловля .begin обращения | логгирование
         except Exception as exc:
             print(type(exc))
-            raise 
+            raise
         else:
             # TODO логгирование
             return con
@@ -50,15 +49,15 @@ class Connection:
         if self.__connect.closed:
             raise ConnectionError("Отсутствует подключение к основной базе данных")
         return Transaction(self.__connect)
-    
-    
+
+
     @overload
     def single_transaction(self, *, type_api: Literal["high"], read_only: bool = False) -> TransactionSession[TransactionHigh]: ...
     @overload
     def single_transaction(self, *, type_api: Literal["low"], read_only: bool = False) -> TransactionSession[TransactionLow]: ...
     @overload
     def single_transaction(self, *, type_api: Literal["basic"], read_only: bool = False) -> TransactionSession[TransactionBasic]: ...
-    
+
     def single_transaction(self, *, type_api: Literal["high", "low", "basic"], read_only: bool = False) -> TransactionSession:
         """Открытие транзакции "из коробки"
 
@@ -71,11 +70,11 @@ class Connection:
         """
         if self.__connect.closed:
             raise ConnectionError("Отсутствует подключение к основной базе данных")
-        
+
         tr = Transaction(self.__connect)
         if type_api == "high":
             return tr.start_transaction(type_api="high", read_only=read_only)
         if type_api == "low":
             return tr.start_transaction(type_api="low", read_only=read_only)
         if type_api == "basic":
-            return tr.start_transaction(type_api="basic", read_only=read_only)    
+            return tr.start_transaction(type_api="basic", read_only=read_only)

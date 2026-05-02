@@ -1,32 +1,23 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-
 [project]
-name = "autodealer-api"             # Имя для PyPI (рекомендуется использовать дефисы)
-version = "0.1.5"                   # Версия пакета (можно управлять через git tags)
+name = "autodealer-api"
+version = "0.1.5"
 description = "Firebird Database Wrapper Library"
-readme = "README.md"                # Файл с описанием (необходимо создать)
-requires-python = ">=3.13"          # Минимальная версия Python
-license = { text = "MIT" }          # Лицензия
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
 
-
-# Зависимости времени выполнения
 dependencies = [
-    "fdb>=2.0.4",                   # Драйвер Firebird
-    "Levenshtein==0.27.3",
-    "pydantic>=2.12.5",
-    "pydantic_core>=2.41.5",
+    "fdb>=2.0.4",
+    "Levenshtein==0.27.3",      # python-Levenshtein удалён (дубликат)
+    "pydantic>=2.12.5",         # typing_* и annotated-types добавятся автоматически
     "PyPika==0.51.1",
-    "python-Levenshtein==0.27.3",
     "RapidFuzz==3.14.3",
-    "typing-inspection==0.4.2",
-    "typing_extensions==4.15.0",
-    "annotated-types==0.7.0"
 ]
 
-# Дополнительные зависимости (например, для разработки)
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
@@ -35,11 +26,6 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-# -----------------------------------------------------------------------------
-# 3. КОНФИГУРАЦИЯ SETUPTOOLS
-# -----------------------------------------------------------------------------
-# Критически важно для структуры 'src': указываем, где искать пакеты.
 [tool.setuptools.packages.find]
-where = ["src"]                     # Искать пакеты внутри директории src
-include = ["autodealerAPI*"]        # Явное включение пакета (учитывая регистр)
-
+where = ["src"]                 # ← Оставляем, т.к. код внутри src/
+include = ["autodealerAPI*"]    # ← Точное совпадение с именем папки
