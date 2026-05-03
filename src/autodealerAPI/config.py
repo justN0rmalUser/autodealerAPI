@@ -1,14 +1,16 @@
-from pydantic import BaseModel
-from pathlib import Path
 import json
-from configparser import ConfigParser
 import logging
+import logging.handlers
+from configparser import ConfigParser
+from pathlib import Path
+
+from pydantic import BaseModel
 
 from .exceptions.config_exceptions import IncompleteConfigurationError
 
-
 __all__ = [
-    "DatabaseConfig"
+    "DatabaseConfig",
+    "setup_logging"
 ]
 
 
@@ -107,11 +109,14 @@ def setup_logging(
 ):
     filepath = Path(log_file) if not isinstance(log_file, Path) else log_file
 
-    if not filepath.is_file() or filepath.suffix != ".log":
-        raise FileNotFoundError("Путь не подходит")
+    if filepath.suffix != ".log":
+        raise FileNotFoundError(f"Суффикс не подходит: {filepath.suffix}")
+    if not filepath.exists():
+        filepath.touch()
+
 
     formatter = logging.Formatter(
-        fmt="%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s",
+        fmt="[%(asctime)s] <%(name)s>: %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
@@ -121,8 +126,7 @@ def setup_logging(
     )
     file_handler.setFormatter(formatter)
 
-    lib_logger = logging.getLogger(__package__)
+    lib_logger = logging.getLogger("autodealerAPI")
     lib_logger.setLevel(level)
     lib_logger.addHandler(file_handler)
     lib_logger.propagate = False  # ⬅️ ключевая строка
-    return lib_logger

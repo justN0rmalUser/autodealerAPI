@@ -3,9 +3,20 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class GOODS_IN:
     GET_GOODS_IN_ID_BY_SHOP_NOM = """SELECT
-        GOODS_IN_ID
+        GOODS_IN_ID,
+        SHOP_NOMENCLATURE_ID,
+        CODE,
+        PRODUCER_ID
     FROM GOODS_IN
-    WHERE SHOP_NOMENCLATURE_ID = ? AND IS_SALED = ?
+    LEFT JOIN DOCUMENT_IN USING(DOCUMENT_IN_ID)
+    LEFT JOIN SHOP_NOMENCLATURE USING(SHOP_NOMENCLATURE_ID)
+    WHERE (DATE_REGISTRATION < ? 
+        AND DATE_REGISTRATION > ? 
+        AND STATE = 4 
+        AND ORGANIZATION_ID = 1 
+        AND PROVIDER_ID = 5 
+        AND SHOP_NOMENCLATURE_ID IN {snids}
+        AND IS_SALED = ?)
     ORDER BY GOODS_IN_ID DESC;
     """
 

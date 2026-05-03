@@ -33,23 +33,23 @@ class Product(BaseModel):
 
     @computed_field
     @property
-    def shop_nom_id(self) -> int | None:
+    def shop_nom_ids(self) -> tuple[int] | None:
         with lite.connect(AUXILIARY_DB) as db:
             data = db.execute(
                 FindProduct.GET_SNID_SQL, 
                 (std.text(self.raw_firm), std.text(self.raw_code))
-            ).fetchone()
+            ).fetchall()
             
         if data is None:
             return None
-        return int(data[0]) 
+        return tuple(int(string[0]) for string in data)
         
 
     @computed_field
     @property
     def firm_id(self) -> int:
         with lite.connect(AUXILIARY_DB) as db:
-            if self.shop_nom_id is None:
+            if self.shop_nom_ids is None or len(self.shop_nom_ids) != 1:
                 data = db.execute(
                     FindProduct.SEEK_FIRM_BY_RAW,
                     (std.text(self.raw_firm), )
@@ -57,7 +57,7 @@ class Product(BaseModel):
             else:
                 data = db.execute(
                     FindProduct.SEEK_FIRM_BY_SNID,
-                    (self.shop_nom_id, )
+                    (self.shop_nom_ids[0], )
                 ).fetchone()
 
         if data is not None:
@@ -68,7 +68,7 @@ class Product(BaseModel):
     @property
     def code(self) -> str:
         with lite.connect(AUXILIARY_DB) as db:
-            if self.shop_nom_id is None:
+            if self.shop_nom_ids is None or len(self.shop_nom_ids) != 1:
                 data = db.execute(
                     FindProduct.SEEK_CODE_BY_RAW,
                     (std.text(self.raw_code), )
@@ -76,7 +76,7 @@ class Product(BaseModel):
             else:
                 data = db.execute(
                     FindProduct.SEEK_CODE_BY_SNID,
-                    (self.shop_nom_id, )
+                    (self.shop_nom_ids[0], )
                 ).fetchone()
 
         return data[0] if data is not None else self.raw_code

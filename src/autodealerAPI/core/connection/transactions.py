@@ -1,6 +1,7 @@
 from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import Generic, Literal, Optional, Type, TypeVar, overload
+import logging
 
 import fdb
 
@@ -12,6 +13,7 @@ from autodealerAPI.core.methods.service import (
 
 
 T = TypeVar('T', TransactionHigh, TransactionLow, TransactionBasic)
+logger = logging.getLogger(__name__)
 
 
 class TransactionSession(AbstractContextManager, Generic[T]):
@@ -25,6 +27,7 @@ class TransactionSession(AbstractContextManager, Generic[T]):
         api: T,
         read_only: bool
     ) -> None:
+        logger.debug(f"Инициализация экземпляра объекта <{self.__class__.__name__}>")
         self._transaction = transaction
         self._read_only = read_only
         self._api = api
@@ -34,10 +37,13 @@ class TransactionSession(AbstractContextManager, Generic[T]):
         """
         Вход в контекст: валидация состояния и инициализация API.
         """
-        # 1. Проверка целостности соединения
+        logger.debug("Старт функции <__enter__>")
+
+        logger.debug("Вход в контекст.")
         if self._transaction.closed:
             raise Exception("Транзакция закрыта!")
 
+        logger.debug("Возврат значения")
         return self._api
 
     def __exit__(
@@ -50,38 +56,55 @@ class TransactionSession(AbstractContextManager, Generic[T]):
         Выход из контекста: фиксация или откат в зависимости от статуса выполнения.
         Возвращает False, чтобы исключения не подавлялись.
         """
+        logger.debug("Старт функции <__exit__>")
+        
         if exc_type is not None:
             # Произошло исключение -> Откат
+            logger.warning("Выброшена ошибка, происходит откат действий!")
             if not self._transaction.closed:
                 self._transaction.rollback()
                 self._transaction.close()
         else:
             # Успешное выполнение -> Коммит (если не режим только для чтения)
+            logger.info('Программа завершена без "исключений"')
             if not self._transaction.closed:
                 if self._read_only:
                     self._transaction.rollback()
+                    logger.info("Откат действий по параметру пользователя")
                 else:
                     self._transaction.commit()
+                    logger.info("Коммит по параметру пользователя")
+                logger.info("Закрытие транзакции")
                 self._transaction.close()
-
+        
+        logger.debug("Функция <__exit__> завершена")
         return False
 
 
 class Transaction:
     def __init__(self, connection: fdb.Connection) -> None:
+        logger.debug(f"Инициализация экземпляра объекта <{self.__class__.__name__}>")
         self.__connection: fdb.Connection = connection
         self.__transaction = self.__create_transact()
 
 
     def __create_transact(self) -> fdb.Transaction:
+        logger.debug("Старт функции <__create_transact>")
+
         try:
+            logger.info("Создание транзакции.")
             trans: fdb.Transaction = self.__connection.trans()
             trans.begin()
         except (AttributeError, TypeError):
+            logger.error("Неправильные данные; база не найдена")
             raise
-        except Exception:
+        except Exception as exc:
+            logger.critical(f"Неизвестная ошибка: <{type(exc)}> {exc}", exc_info=True)
             raise
         else:
+            logger.info("Транзакция создана без ошибок!")
+
+            logger.debug("Возврат значения")
             return trans
 
 
@@ -98,11 +121,16 @@ class Transaction:
         Yields:
             Generator[TransactionHigh | TransactionLow]: API (методы) для записи в базу данных
         """
+        logger.debug("Старт функции <start_transaction>")
+        
         if self.__connection.closed:
-            raise ConnectionAbortedError("Соединение закрыто, создание транзакции невозможно!")
+            logger.error(err := ConnectionAbortedError("Соединение закрыто, создание транзакции невозможно!"))
+            raise err
         if self.__transaction.closed:
-            raise ConnectionAbortedError("Транзакция закрыта, выполнение методов невозможно!")
+            logger.error(err := ConnectionAbortedError("Транзакция закрыта, выполнение методов невозможно!"))
+            raise err
 
+        logger.info(f"Тип API: <{type_api}>.")
         match type_api:
             case "high":
                 return TransactionSession[TransactionHigh](

@@ -1,9 +1,13 @@
 """Валидация данных для БД"""
 
 from typing import Any
+import logging
 
 from autodealerAPI.types.models import AcceptedTables
 from autodealerAPI.types.schemas.product_schema import Product
+
+
+logger = logging.getLogger(__name__)
 
 
 class Build:
@@ -17,6 +21,7 @@ class Build:
 
     @staticmethod
     def product(data: dict) -> dict:
+        logger.debug(f"Валидация модели: <{data}>")
         validated_model = Product.model_validate(data)
-        print("Модель валидирована")
+        logger.info(f"Модель валидирована, результат: <{validated_model}>")
         return validated_model.model_dump()

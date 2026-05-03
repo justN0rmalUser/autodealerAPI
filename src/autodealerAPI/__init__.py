@@ -18,15 +18,19 @@ __version__ = "0.1.2"
 try:
     from .core.connection.connect import Connection
     from .core.connection.transactions import Transaction
-    from .config import DatabaseConfig
+    from .config import DatabaseConfig, setup_logging
     from .exceptions.config_exceptions import IncompleteConfigurationError
     from .types.models import AcceptedTables
     from .types.builder import Build
     from .types.schemas.product_schema import Product
+    from .utils.functions.standard import std
+    from .utils.functions.update_format_db import update_db
 except ImportError as e:
     # Принцип "Надежность": если библиотека сломана при импорте, мы должны об этом знать четко.
     # Но не скрываем ошибку, а пробрасываем её с контекстом.
     raise ImportError(f"Failed to initialize library components: {e}") from e
+else:
+    update_db()
 
 # -----------------------------------------------------------------------------
 # 3. ЯВНЫЙ СПИСОК ЭКСПОРТА (__all__)
@@ -42,5 +46,7 @@ __all__ = [
     "AcceptedTables",
     "Build",
     "Product",
-    "IncompleteConfigurationError"
+    "IncompleteConfigurationError",
+    "setup_logging",
+    "std"
 ]

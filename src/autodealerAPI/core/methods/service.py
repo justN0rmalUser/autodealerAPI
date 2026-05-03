@@ -1,7 +1,8 @@
 """API взаимодействия с транзакциями"""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
+import logging
 from time import sleep
 
 import fdb
@@ -16,18 +17,25 @@ from autodealerAPI.utils.literals.sqls import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 class TransactionBasic:
     """Атомарное взаимодействие с транзакциями
     редко используется пользователем"""
     def __init__(self, transaction: fdb.Transaction) -> None:
+        logger.debug(f"Инициализация экземпляра объекта <{self.__class__.__qualname__}>")
         self.__transaction: fdb.Transaction = transaction
 
     def _cursor(self) -> Cursor:
+        logger.debug("Создание курсора")
         return self.__transaction.cursor()
 
     def timestamp(self):
         """Timestamp для базы данных"""
-        return datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
+        ts = datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
+        logger.debug(f"Создание таймштампа: <{ts}>")
+        return ts
 
     def new(
         self,
@@ -102,6 +110,7 @@ class TransactionBasic:
 class TransactionLow(TransactionBasic):
     """Готово, но несвязное API для транзакции"""
     def __init__(self, transaction) -> None:
+        logger.debug(f"Инициализация экземпляра объекта <{self.__class__.__qualname__}>")
         super().__init__(transaction)
 
     def new_document_registry(self):
@@ -177,29 +186,39 @@ class TransactionLow(TransactionBasic):
         return self.new(cursor, schema=builded_table)
 
     def new_document_cargo(self, doc_out: int, agent_id: Literal[8876, 8880]):
+        logger.debug("Старт функции <new_document_cargo>")
+        
         cursor = self._cursor()
         data = {
             "DOCUMENT_OUT_ID": doc_out,
             "RECEIVER_ID": agent_id,
             "PAYER_ID": agent_id
         }
-        builded_table = Build.table(
+        table_name, valid_data = Build.table(
             schema=Table.DOCUMENT_CARGO,
             data=data
         )
-        return self.new(cursor, schema=builded_table)
+
+        logger.info(f"Создание документа: <{Table.DOCUMENT_CARGO.name}>")
+        logger.debug("Возврат значений <new_document_cargo>")
+        return TableRow.new(cursor, table=table_name, data=valid_data)
 
     def new_document_return_pvd_detail(self, doc_out_head: int):
+        logger.debug("Старт функции <new_document_return_pvd_detail>")
+        
         cursor = self._cursor()
         data = {
             "DOCUMENT_OUT_HEADER_ID": doc_out_head,
             "REASON": 'Отказ (Auto)'
         }
-        builded_table = Build.table(
+        table_name, valid_data = Build.table(
             schema=Table.DOCUMENT_RETURN_PVD_DETAIL,
             data=data
         )
-        return self.new(cursor, schema=builded_table)
+        
+        logger.info(f"Создание документа: <{Table.DOCUMENT_RETURN_PVD_DETAIL.name}>")
+        logger.debug("Возврат значений <new_document_return_pvd_detail>")
+        return TableRow.new(cursor, table=table_name, data=valid_data)
 
     def new_goods_out(
         self,
@@ -211,6 +230,8 @@ class TransactionLow(TransactionBasic):
         count: float,
         pos: int
     ):
+        logger.debug("Старт функции <new_goods_out>")
+
         data = {
             "GOODS_IN_ID": good_in,
             "DOCUMENT_OUT_ID": doc_out,
@@ -222,16 +243,20 @@ class TransactionLow(TransactionBasic):
             "GUARANTE": 1,
             "POSITION_NUMBER": pos
         }
+
         table_name, valid_data = Build.table(
             schema=Table.GOODS_OUT,
             data=data
         )
+
+        logger.debug("Возврат значений <new_goods_out>")
         return TableRow.new(cursor, table=table_name, data=valid_data)
 
 
 class TransactionHigh:
     """Полноценное и абстрактное взаимодействие с базой данных"""
     def __init__(self, transaction: fdb.Transaction) -> None:
+        logger.debug(f"Инициализация экземпляра объекта <{self.__class__.__name__}>")
         self._trans = TransactionLow(transaction)
 
     def create_document_out(
@@ -256,15 +281,19 @@ class TransactionHigh:
         Returns:
             dict: словарь используемых (созданных) идентификаторов в БД
         """
+        logger.debug("Старт функции <create_document_out>")
+
         # создание документов
+        logger.info(f"Создание основных документов в системе: <{Table.DOCUMENT_REGISTRY.name}>, <{Table.DOCUMENT_OUT.name}>")
         doc_reg = self._trans.new_document_registry()
         doc_out = self._trans.new_document_out(
             summa=summa,
             partner_id=partner_id
         )
 
-        if not (isinstance(doc_reg.pk_id, int) and isinstance(doc_out.pk_id, int)):
-            raise TypeError("Первичные ключи не заданы")
+        if not self._is_all_registered(doc_reg, doc_out):
+            logger.critical(err := "Первичные ключи не заданы")
+            raise TypeError(err)
 
         # Карго
         doc_cargo = self._trans.new_document_cargo(
@@ -279,20 +308,23 @@ class TransactionHigh:
             number=self._get_number_for_out_head()
         )
 
-        if not isinstance(doc_out_head.pk_id, int):
-            raise TypeError("Первичный ключ DocOutHead не задан")
-
+        if not self._is_all_registered(doc_out_head):
+            logger.critical(err := "Первичный ключ doc_out_head не задан")
+            raise TypeError(err)
+        
         doc_ret_pvd_det = self._trans.new_document_return_pvd_detail(
             doc_out_head.pk_id
         )
 
-        return {
+        ids = {
             "DOCUMENT_REGISTRY": doc_reg.pk_id,
             "DOCUMENT_OUT": doc_out.pk_id,
             "DOCUMENT_CARGO": doc_cargo.pk_id,
             "DOCUMENT_OUT_HEADER": doc_out_head.pk_id,
             "DOCUMENT_RETURN_PVD_DETAIL": doc_ret_pvd_det.pk_id
         }
+        logger.debug(f"Возврат значений <create_document_out>: {ids}")
+        return ids
 
     def fill_document_out(
         self,
@@ -314,6 +346,8 @@ class TransactionHigh:
         Returns:
             list[int]: Список ID записей товаров
         """
+        logger.debug("Старт функции <fill_document_out>")
+        
         update_cursor = cursor = self._trans._cursor()
 
         # matched_products - список обработанных значений; docs - созданные записи в БД
@@ -321,47 +355,49 @@ class TransactionHigh:
         docs = []
 
         for product in map(Build.product, raw_products):
-            print("Старт итерации")
+            logger.info("Старт итерации")
+            logger.debug(f"Текущие данные итерации: <{product}>")
+
             # Установка значений
-            print(product)
-            candidates_goods_in: list[int] | None = self._get_goodsin(product["shop_nom_id"])
+            candidates_goods_in: tuple[tuple[int, int, str, int]] = self._get_goodsin(product["shop_nom_ids"])
 
             # Проверка на наличие в БД сделанной записи
             if candidates_goods_in is None:
+                logger.warning(f"Запись возможно уже есть в базе данных, данные: <{product}>")
                 continue
             
-            print(f"Кандидаты: {candidates_goods_in}")
-
             # поиск первого подходящего товара
-            for goods_in_id in candidates_goods_in:
+            for goods_in_id, snid, code, firm in candidates_goods_in:
                 # Высчитывание остатка для этого GOODS_IN
+                logger.info(f"Проверка: <{goods_in_id, snid, code, firm}>")
                 remainder = self._count_of_free_cells(goods_in_id)
 
-                print(remainder, product["count"], goods_in_id, flush=True)  # Промежуток вывод
                 # Соответствует ли количество продукта необходимому остатку
                 if product["count"] <= remainder:
-                    print(f"{product["count"]} <= {remainder}")  # Промежуток вывод
                     tproduct = {
                         "goods_in_id": goods_in_id,
-                        "shop_nom_id": product["shop_nom_id"],
+                        "shop_nom_id": snid,
                         "count": product["count"],
                         "price": product["price"],
                         "is_sold_out": product["count"] == remainder
                     }
-                    print(tproduct)  # Промежуток вывод
 
+                    logger.info(f"Добавление: <{tproduct}>")
                     matched_products.append(tproduct)
-                    print("ДОбавлен")
+                
+                    logger.debug("Завершение цикла подбора")
                     break
             else:
                 # если ни одно значение не подошло, то ошибка
-                raise Exception("Доступного остатка товара недостаточно для выполнения операции.")
+                logger.critical(err := "Доступного остатка товара недостаточно для выполнения операции!")
+                raise Exception(err)
 
         # Была ли хоть одна запись
         if not matched_products:
-            raise Exception("Документы пустые, все товары введены")
+            logger.warning(err := "Документы пустые, все товары введены")
+            raise Exception(err)
 
-        print("Старт добавления документов")
+        logger.info("Старт создания записей в базе данных")
         # Внесение в БД
         for i, product in enumerate(matched_products, start=1):
             # Внесение в документ на позицию i
@@ -375,11 +411,12 @@ class TransactionHigh:
                 pos=i
             ).pk_id)
             
-            sleep(0.7)
-            print("Документ добавлен:", docs[i-1])
+            sleep(0.5)
+            logger.info(f"Документ добавлен: <{docs[i-1]}>")
 
             # Обновление GOODS_IN если товар распродан
             if product["is_sold_out"]:
+                logger.info("Обновление <IS_SALED> для записи")
                 self._trans.load(
                     update_cursor,
                     table_name=Table.GOODS_IN.name,
@@ -389,6 +426,7 @@ class TransactionHigh:
                 )
 
         # Обновление DOCUMENT_OUT_HEADER
+        logger.info(f"Установка статуса готовности для <{Table.DOCUMENT_OUT_HEADER.name}>")
         self._trans.load(
             update_cursor,
             table_name=Table.DOCUMENT_OUT_HEADER.name,
@@ -397,10 +435,12 @@ class TransactionHigh:
             STATE=4,
         )
         
-        print("Успех")
+        logger.info("Цикл внесения товаров пройден успешно.")
 
         # Закрытие и возврат документов
         cursor.close()
+        
+        logger.debug("Возврат значений <fill_document_out>")
         return docs
 
     # def create_calculation(self, *,
@@ -449,36 +489,52 @@ class TransactionHigh:
     #         None
     #     """
 
-    def _get_goodsin(self, shop_nom_id: int | None):
+    def _get_goodsin(self, shop_nom_id: tuple[int] | None) -> tuple[tuple[int, int, str, int], ]:
         # Проверка shop_nom_id
+        logger.debug("Старт функции <_get_goodsin>")
+        
         if shop_nom_id is None:
-            raise ValueError(f"Такой товар не найден: {shop_nom_id}")
+            logger.error(err := "Такой товар не найден")
+            raise ValueError(err)
 
         # Курсор для взаимодействия
         cursor = self._trans._cursor()
 
+        current_date = (datetime.now().date() + timedelta(days=1)).strftime(r"%Y-%m-%d")
+        past_date = (datetime.now().date() - timedelta(days=62)).strftime(r"%Y-%m-%d")
+        gin_sql = GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM.format(snids=shop_nom_id if len(shop_nom_id) > 1 else '('+str(shop_nom_id[0])+')')
+
         # Поиск нерасходованных товаров
+        logger.info("Поиск наиболее подходящих GOODS_IN_ID по SHOP_NOMECLATURE_ID")
         goods_in = cursor.execute(
-            GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM,
-            (shop_nom_id, 0)
+            gin_sql,
+            (current_date, past_date, 0)
         ).fetchall()
 
+        logger.info("Поиск GOODS_IN_ID, которые были реализованны/возвращены по SHOP_NOMECLATURE_ID")
         goods_in_saled = cursor.execute(
-            GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM,
-            (shop_nom_id, 1)
+            gin_sql,
+            (current_date, past_date, 1)
         ).fetchone()
 
         # Проверка наличия
         if goods_in:
-            candidates_goods_in = [int(item[0]) for item in goods_in]
+            candidates_goods_in = tuple((int(gin), int(snid), code, int(firm)) for gin, snid, code, firm in goods_in)
+            logger.info(f"GOODS_IN_ID найдены: {candidates_goods_in}")
+            logger.debug("Возврат значений <_get_goodsin>")
             return candidates_goods_in
 
         if goods_in_saled:
+            logger.info(f"GOODS_IN_ID не найдены, но есть пометка, что товар распродан: {candidates_goods_in}")
+            logger.debug("Возврат значений <_get_goodsin>")
             return None
 
-        raise ValueError(f"никакие GOODS_IN_ID не найдены: {shop_nom_id}")
+        logger.error(err := f"Никакие GOODS_IN_ID не найдены: {shop_nom_id}")
+        raise ValueError(err)
 
     def _count_of_free_cells(self, goods_in_id: int) -> int:
+        logger.debug("Старт функции <_count_of_free_cells>")
+        
         # Курсор для краткого взаимодействия с БД
         temp_cursor = self._trans._cursor()
 
@@ -489,10 +545,12 @@ class TransactionHigh:
                 (goods_in_id, )
             ).fetchone()[0]  # type: ignore ## значение как минимум нуль
         )
+        logger.info(f"Количество свободных слотов: <{res}>")
 
         # Закрытие курсора
         temp_cursor.close()
 
+        logger.debug("Возврат значений <_count_of_free_cells>")
         return res
 
     def _get_number_for_out_head(self):
@@ -509,3 +567,9 @@ class TransactionHigh:
         if not req:
             raise ValueError("Номер документа не найден")
         return int(req[0])
+    
+    def _is_all_registered(self, *docs: TableRow):
+        for doc in docs:
+            if not isinstance(doc.pk_id, int) or doc.pk_id == -1:
+                return False
+        return True
