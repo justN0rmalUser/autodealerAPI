@@ -1,6 +1,6 @@
 """API взаимодействия с транзакциями"""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Literal
 import logging
 from time import sleep
@@ -332,7 +332,7 @@ class TransactionHigh:
         raw_products: list[dict],
         doc_out_id: int,
         doc_out_head_id: int,
-        search_date_interval: str
+        search_date_interval: str=f"{date.today()-timedelta(days=62)}|{date.today()+timedelta(days=1)}"
     ) -> list[int]:
         """Заполнение документа возврата поставщику (2/2)
 
@@ -396,7 +396,6 @@ class TransactionHigh:
             else:
                 # если ни одно значение не подошло, то ошибка
                 logger.critical(err := "Доступного остатка товара недостаточно для выполнения операции!")
-                raise Exception(err)
 
         # Была ли хоть одна запись
         if not matched_products:
