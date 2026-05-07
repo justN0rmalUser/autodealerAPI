@@ -104,7 +104,8 @@ class Connection:
         tr = Transaction(self.__connect)
 
         try:
-            yield tr.start_transaction(type_api=type_api, read_only=read_only)
+            with tr.start_transaction(type_api=type_api, read_only=read_only) as api:
+                yield api
         finally:
             self.close()
             logger.debug("Функция <single_transaction> завершена")        
