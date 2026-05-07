@@ -1,4 +1,5 @@
 import re
+from datetime import date
 
 
 class std:
@@ -34,3 +35,8 @@ class std:
         for el in "\\|/-;:":
             value = value.replace(el, '')
         return value
+
+
+def parse_date_interval(iso_interval: str):
+    start, end = iso_interval.split('|')
+    return date.fromisoformat(start), date.fromisoformat(end)

@@ -11,6 +11,7 @@ from fdb import Cursor
 from autodealerAPI.types.builder import Build
 from autodealerAPI.types.models import AcceptedTables as Table
 from autodealerAPI.core.methods.table_api import TableRow
+from autodealerAPI.utils.functions.standard import parse_date_interval
 from autodealerAPI.utils.literals.sqls import (
     GOODS_IN,
     Other
@@ -330,7 +331,8 @@ class TransactionHigh:
         self,
         raw_products: list[dict],
         doc_out_id: int,
-        doc_out_head_id: int
+        doc_out_head_id: int,
+        search_date_interval: str
     ) -> list[int]:
         """Заполнение документа возврата поставщику (2/2)
 
@@ -359,7 +361,11 @@ class TransactionHigh:
             logger.debug(f"Текущие данные итерации: <{product}>")
 
             # Установка значений
-            candidates_goods_in: tuple[tuple[int, int, str, int]] = self._get_goodsin(product["shop_nom_ids"])
+            candidates_goods_in: tuple[tuple[int, int, str, int]] = self._get_goodsin(
+                product["shop_nom_ids"],
+                product["price"],
+                search_date_interval
+            )
 
             # Проверка на наличие в БД сделанной записи
             if candidates_goods_in is None:
@@ -489,48 +495,76 @@ class TransactionHigh:
     #         None
     #     """
 
-    def _get_goodsin(self, shop_nom_id: tuple[int] | None) -> tuple[tuple[int, int, str, int], ]:
+    def _get_goodsin(
+        self, 
+        shop_nom_id: tuple[int] | None,
+        price: float,
+        search_date_interval: str
+    ) -> tuple[tuple[int, int, str, int], ]:
         # Проверка shop_nom_id
         logger.debug("Старт функции <_get_goodsin>")
         
-        if shop_nom_id is None:
+        if not shop_nom_id:
             logger.error(err := "Такой товар не найден")
-            raise ValueError(err)
+            return None
 
         # Курсор для взаимодействия
         cursor = self._trans._cursor()
+        start, end = parse_date_interval(search_date_interval)
+        gin_sql_abs = GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM_ABSOLUTE.format(snids=shop_nom_id if len(shop_nom_id) > 1 else '('+str(shop_nom_id[0])+')')
+        gin_sql_close = GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM_CLOSE.format(snids=shop_nom_id if len(shop_nom_id) > 1 else '('+str(shop_nom_id[0])+')')
 
-        current_date = (datetime.now().date() + timedelta(days=1)).strftime(r"%Y-%m-%d")
-        past_date = (datetime.now().date() - timedelta(days=62)).strftime(r"%Y-%m-%d")
-        gin_sql = GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM.format(snids=shop_nom_id if len(shop_nom_id) > 1 else '('+str(shop_nom_id[0])+')')
-
+        small_price = (price // 10 * 10)
+        big_price = (price // 10 * 11)
+        
         # Поиск нерасходованных товаров
         logger.info("Поиск наиболее подходящих GOODS_IN_ID по SHOP_NOMECLATURE_ID")
-        goods_in = cursor.execute(
-            gin_sql,
-            (current_date, past_date, 0)
+        goods_in_abs = cursor.execute(
+            gin_sql_abs,
+            (end, start, price, 0)
         ).fetchall()
 
+        goods_in_close = cursor.execute(
+            gin_sql_close,
+            (end, start, big_price, small_price, 0)
+        ).fetchall()
+        
         logger.info("Поиск GOODS_IN_ID, которые были реализованны/возвращены по SHOP_NOMECLATURE_ID")
-        goods_in_saled = cursor.execute(
-            gin_sql,
-            (current_date, past_date, 1)
+        goods_in_saled_abs = cursor.execute(
+            gin_sql_abs,
+            (end, start, price, 1)
         ).fetchone()
 
+        goods_in_saled_close = cursor.execute(
+            gin_sql_close,
+            (end, start, big_price, small_price, 1)
+        ).fetchall()
+
         # Проверка наличия
-        if goods_in:
-            candidates_goods_in = tuple((int(gin), int(snid), code, int(firm)) for gin, snid, code, firm in goods_in)
+        if goods_in_abs:
+            candidates_goods_in = tuple((int(gin), int(snid), code, int(firm)) for gin, snid, code, firm in goods_in_abs)
             logger.info(f"GOODS_IN_ID найдены: {candidates_goods_in}")
             logger.debug("Возврат значений <_get_goodsin>")
             return candidates_goods_in
 
-        if goods_in_saled:
-            logger.info(f"GOODS_IN_ID не найдены, но есть пометка, что товар распродан: {candidates_goods_in}")
+        if goods_in_saled_abs:
+            logger.info(f"GOODS_IN_ID не найдены, но есть пометка, что товар распродан: <{goods_in_saled_abs}>")
+            logger.debug("Возврат значений <_get_goodsin>")
+            return None
+        
+        if goods_in_close:
+            candidates_goods_in = tuple((int(gin), int(snid), code, int(firm)) for gin, snid, code, firm in goods_in_close)
+            logger.info(f"GOODS_IN_ID найдены: {candidates_goods_in}")
+            logger.debug("Возврат значений <_get_goodsin>")
+            return candidates_goods_in
+
+        if goods_in_saled_close:
+            logger.info(f"GOODS_IN_ID не найдены, но есть пометка, что товар распродан: <{goods_in_saled_close}>")
             logger.debug("Возврат значений <_get_goodsin>")
             return None
 
-        logger.error(err := f"Никакие GOODS_IN_ID не найдены: {shop_nom_id}")
-        raise ValueError(err)
+        logger.warning(f"Никакие GOODS_IN_ID не найдены: {shop_nom_id}")
+        
 
     def _count_of_free_cells(self, goods_in_id: int) -> int:
         logger.debug("Старт функции <_count_of_free_cells>")

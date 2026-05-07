@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class GOODS_IN:
-    GET_GOODS_IN_ID_BY_SHOP_NOM = """SELECT
+    GET_GOODS_IN_ID_BY_SHOP_NOM_ABSOLUTE = """SELECT
         GOODS_IN_ID,
         SHOP_NOMENCLATURE_ID,
         CODE,
@@ -11,7 +11,8 @@ class GOODS_IN:
     LEFT JOIN DOCUMENT_IN USING(DOCUMENT_IN_ID)
     LEFT JOIN SHOP_NOMENCLATURE USING(SHOP_NOMENCLATURE_ID)
     WHERE (DATE_REGISTRATION < ? 
-        AND DATE_REGISTRATION > ? 
+        AND DATE_REGISTRATION > ?
+        AND COST1 = ?
         AND STATE = 4 
         AND ORGANIZATION_ID = 1 
         AND PROVIDER_ID = 5 
@@ -19,6 +20,26 @@ class GOODS_IN:
         AND IS_SALED = ?)
     ORDER BY GOODS_IN_ID DESC;
     """
+    GET_GOODS_IN_ID_BY_SHOP_NOM_CLOSE = """SELECT
+        GOODS_IN_ID,
+        SHOP_NOMENCLATURE_ID,
+        CODE,
+        PRODUCER_ID
+    FROM GOODS_IN
+    LEFT JOIN DOCUMENT_IN USING(DOCUMENT_IN_ID)
+    LEFT JOIN SHOP_NOMENCLATURE USING(SHOP_NOMENCLATURE_ID)
+    WHERE (DATE_REGISTRATION < ? 
+        AND DATE_REGISTRATION > ?
+        AND COST1 <= ?
+        AND COST1 >= ?
+        AND STATE = 4 
+        AND ORGANIZATION_ID = 1 
+        AND PROVIDER_ID = 5 
+        AND SHOP_NOMENCLATURE_ID IN {snids}
+        AND IS_SALED = ?)
+    ORDER BY GOODS_IN_ID DESC;
+    """
+
 
 @dataclass(frozen=True)
 class Other:
