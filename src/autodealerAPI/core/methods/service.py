@@ -354,6 +354,9 @@ class TransactionHigh:
 
         # matched_products - список обработанных значений; docs - созданные записи в БД
         matched_products: list[dict[str, int | bool]] = []
+        exists_goods_ids: set[int] = set()
+        sum_products = 0.0
+
         docs = []
 
         for product in map(Build.product, raw_products):
@@ -374,6 +377,13 @@ class TransactionHigh:
             
             # поиск первого подходящего товара
             for goods_in_id, snid, code, firm in candidates_goods_in:
+                # Проверка на повтор
+                if goods_in_id in exists_goods_ids:
+                    logger.info(f"Этот GOODS_ID повторился: <{goods_in_id}>")
+                    continue
+                exists_goods_ids.add(goods_in_id)
+                logger.info(f"Добавление уникального GOODS_ID: <{goods_in_id}>")
+
                 # Высчитывание остатка для этого GOODS_IN
                 logger.info(f"Проверка: <{goods_in_id, snid, code, firm}>")
                 remainder = self._count_of_free_cells(goods_in_id)
@@ -385,7 +395,7 @@ class TransactionHigh:
                         "shop_nom_id": snid,
                         "count": product["count"],
                         "price": product["price"],
-                        "is_sold_out": product["count"] == remainder
+                        "is_sold_out": int(product["count"]) == remainder
                     }
 
                     logger.info(f"Добавление: <{tproduct}>")
@@ -416,6 +426,8 @@ class TransactionHigh:
                 pos=i
             ).pk_id)
             
+            sum_products += product["price"] * product["count"]
+            
             sleep(0.5)
             logger.info(f"Документ добавлен: <{docs[i-1]}>")
 
@@ -427,8 +439,17 @@ class TransactionHigh:
                     table_name=Table.GOODS_IN.name,
                     ID=product["goods_in_id"]
                 ).update_fields(
-                    IS_SALED=1,
+                    IS_SALED=1
                 )
+
+        logger.info(f"Обновление суммы документа для <{Table.DOCUMENT_OUT.name}>")
+        self._trans.load(
+            update_cursor,
+            table_name=Table.DOCUMENT_OUT.name,
+            ID=doc_out_id
+        ).update_fields(
+            SUMMA=sum_products
+        )
 
         # Обновление DOCUMENT_OUT_HEADER
         logger.info(f"Установка статуса готовности для <{Table.DOCUMENT_OUT_HEADER.name}>")
@@ -448,52 +469,6 @@ class TransactionHigh:
         logger.debug("Возврат значений <fill_document_out>")
         return docs
 
-    # def create_calculation(self, *,
-    #     title: str,
-    #     descript: str,
-    #     metatable_id: int,
-    #     document_type_id: int
-    # ) -> int:
-    #     """Создает пустую калькуляцию в системе
-
-    #     Args:
-    #         _title (str): Наименование док-та
-    #         _descript (str): Описание док-та
-    #         _metatable_id (int): Принадлежность записи к системе
-    #         _document_type_id (int): Принадлежность документа к системе
-
-    #     Returns:
-    #         doc_calc_id (int): ID созданной калькуляции
-    #     """
-    #     # cur = self._trans._cursor()
-    #     doc_calc_id: int = self.__tr.document_calculation(
-    #         _title=_title,
-    #         _descript=_descript,
-    #         _doc_reg_id=_doc_reg_id,
-    #         _document_type_id=_document_type_id
-    #     )
-    #     return doc_calc_id
-
-    # def fill_calculation(self, *,
-    #     shop_nomeclature_id: int,
-    #     doc_calc_id: int,
-    #     count: int,
-    #     price: int,
-    #     pos: int
-    # ) -> None:
-    #     """Вносит в калькуляцию
-
-    #     Args:
-    #         shop_nomeclature_id (int): ID товара, который нужно внести
-    #         doc_calc_id (int): ID документа, куда будет внесен товар
-    #         count (int): Количество единиц товара
-    #         price (int): Цена товара за штуку
-    #         pos (int): Позиция в документе
-
-    #     Returns:
-    #         None
-    #     """
-
     def _get_goodsin(
         self, 
         shop_nom_id: tuple[int] | None,
@@ -504,18 +479,17 @@ class TransactionHigh:
         logger.debug("Старт функции <_get_goodsin>")
         
         if not shop_nom_id:
-            logger.error(err := "Такой товар не найден")
+            logger.error("Такой товар не найден")
             return None
 
         # Курсор для взаимодействия
         cursor = self._trans._cursor()
         start, end = parse_date_interval(search_date_interval)
+
+        logger.debug("Формирование SQL")
         gin_sql_abs = GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM_ABSOLUTE.format(snids=shop_nom_id if len(shop_nom_id) > 1 else '('+str(shop_nom_id[0])+')')
         gin_sql_close = GOODS_IN.GET_GOODS_IN_ID_BY_SHOP_NOM_CLOSE.format(snids=shop_nom_id if len(shop_nom_id) > 1 else '('+str(shop_nom_id[0])+')')
 
-        small_price = (price // 10 * 10)
-        big_price = (price // 10 * 11)
-        
         # Поиск нерасходованных товаров
         logger.info("Поиск наиболее подходящих GOODS_IN_ID по SHOP_NOMECLATURE_ID")
         goods_in_abs = cursor.execute(
@@ -525,7 +499,7 @@ class TransactionHigh:
 
         goods_in_close = cursor.execute(
             gin_sql_close,
-            (end, start, big_price, small_price, 0)
+            (end, start, 0)
         ).fetchall()
         
         logger.info("Поиск GOODS_IN_ID, которые были реализованны/возвращены по SHOP_NOMECLATURE_ID")
@@ -533,11 +507,6 @@ class TransactionHigh:
             gin_sql_abs,
             (end, start, price, 1)
         ).fetchone()
-
-        goods_in_saled_close = cursor.execute(
-            gin_sql_close,
-            (end, start, big_price, small_price, 1)
-        ).fetchall()
 
         # Проверка наличия
         if goods_in_abs:
@@ -557,11 +526,6 @@ class TransactionHigh:
             logger.debug("Возврат значений <_get_goodsin>")
             return candidates_goods_in
 
-        if goods_in_saled_close:
-            logger.info(f"GOODS_IN_ID не найдены, но есть пометка, что товар распродан: <{goods_in_saled_close}>")
-            logger.debug("Возврат значений <_get_goodsin>")
-            return None
-
         logger.warning(f"Никакие GOODS_IN_ID не найдены: {shop_nom_id}")
         
 
@@ -575,7 +539,7 @@ class TransactionHigh:
         res = int(
             temp_cursor.execute(
                 Other.GET_FREE_CELLS,
-                (goods_in_id, )
+                (goods_in_id, goods_in_id)
             ).fetchone()[0]  # type: ignore ## значение как минимум нуль
         )
         logger.info(f"Количество свободных слотов: <{res}>")

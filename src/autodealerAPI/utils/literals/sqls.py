@@ -30,8 +30,6 @@ class GOODS_IN:
     LEFT JOIN SHOP_NOMENCLATURE USING(SHOP_NOMENCLATURE_ID)
     WHERE (DATE_REGISTRATION < ? 
         AND DATE_REGISTRATION > ?
-        AND COST1 <= ?
-        AND COST1 >= ?
         AND STATE = 4 
         AND ORGANIZATION_ID = 1 
         AND PROVIDER_ID = 5 
@@ -44,11 +42,23 @@ class GOODS_IN:
 @dataclass(frozen=True)
 class Other:
     GET_FREE_CELLS = """SELECT
-        COALESCE(SUM(GIN.GOODS_COUNT), 0) - COALESCE(SUM(GOT.GOODS_COUNT), 0) CELLS
-    FROM GOODS_OUT GOT
-    RIGHT JOIN GOODS_IN GIN USING(GOODS_IN_ID)
-    WHERE GIN.GOODS_IN_ID = ?
+        COALESCE(
+            (SELECT MAX(gin.GOODS_COUNT) FROM GOODS_IN gin WHERE gin.GOODS_IN_ID = ?), 0
+        ) -
+        COALESCE(
+            SUM(
+                CASE
+                    WHEN got.GOODS_COUNT_FACT = got.GOODS_COUNT
+                        THEN got.GOODS_COUNT_FACT - COALESCE(got.GOODS_COUNT_RETURN, 0)
+                    ELSE got.GOODS_COUNT
+                END
+            ), 0
+        ) AS FREE_CELLS
+    FROM GOODS_OUT got
+    INNER JOIN DOCUMENT_OUT dout ON dout.DOCUMENT_OUT_ID = got.DOCUMENT_OUT_ID
+    WHERE got.GOODS_IN_ID = ? AND dout.DOCUMENT_TYPE_ID IN (2, 7, 11);
     """
+    
     GET_NUMBER_FOR_DOC_OUT = 'SELECT COALESCE(MAX("NUMBER"), 0) + 1 FROM DOCUMENT_OUT_HEADER WHERE DOCUMENT_TYPE_ID = 7'
     
     

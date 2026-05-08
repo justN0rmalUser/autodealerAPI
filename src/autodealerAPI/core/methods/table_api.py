@@ -73,7 +73,8 @@ class TableRow:
             **fields
         )
 
-        logger.info("Изменение аттрибутов")
+        logger.info(f"Изменение аттрибутов: {fields}")
+        logger.debug(f"Запрос: {query}")
         self.cursor.execute(query)
         
         logger.debug("Конец функции <update_fields>")
