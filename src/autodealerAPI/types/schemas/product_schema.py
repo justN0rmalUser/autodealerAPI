@@ -62,7 +62,7 @@ class Product(BaseModel):
 
         if data is not None:
             return int(data[0])
-        raise Exception("Неизвестная фирма!")
+        return -1 #"Неизвестная фирма!")
 
     @computed_field
     @property

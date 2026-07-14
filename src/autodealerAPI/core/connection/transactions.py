@@ -60,6 +60,7 @@ class TransactionSession(AbstractContextManager, Generic[T]):
         
         if exc_type is not None:
             # Произошло исключение -> Откат
+            print(exc_type, exc_val, exc_tb)
             logger.warning("Выброшена ошибка, происходит откат действий!")
             if not self._transaction.closed:
                 self._transaction.rollback()

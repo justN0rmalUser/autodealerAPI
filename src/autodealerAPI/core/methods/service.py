@@ -363,15 +363,20 @@ class TransactionHigh:
             logger.info("Старт итерации")
             logger.debug(f"Текущие данные итерации: <{product}>")
 
+            if product["firm_id"] == -1:
+                logger.warning("Фирма не найдена во внутренней базе")
+                continue
             # Установка значений
-            candidates_goods_in: tuple[tuple[int, int, str, int]] = self._get_goodsin(
-                product["shop_nom_ids"],
-                product["price"],
-                search_date_interval
-            )
-
-            # Проверка на наличие в БД сделанной записи
-            if candidates_goods_in is None:
+            try:
+                candidates_goods_in: tuple[tuple[int, int, str, int]] = self._get_goodsin(
+                    product["shop_nom_ids"],
+                    product["price"],
+                    search_date_interval
+                )
+            except AttributeError:
+                logger.warning(f"Запись не найдена, данные: <{product}>")
+                continue
+            except ValueError:
                 logger.warning(f"Запись возможно уже есть в базе данных, данные: <{product}>")
                 continue
             
@@ -439,7 +444,7 @@ class TransactionHigh:
                     table_name=Table.GOODS_IN.name,
                     ID=product["goods_in_id"]
                 ).update_fields(
-                    IS_SALED=1
+                    IS_SALED=1,
                 )
 
         logger.info(f"Обновление суммы документа для <{Table.DOCUMENT_OUT.name}>")
@@ -480,7 +485,7 @@ class TransactionHigh:
         
         if not shop_nom_id:
             logger.error("Такой товар не найден")
-            return None
+            raise AttributeError
 
         # Курсор для взаимодействия
         cursor = self._trans._cursor()
@@ -518,7 +523,7 @@ class TransactionHigh:
         if goods_in_saled_abs:
             logger.info(f"GOODS_IN_ID не найдены, но есть пометка, что товар распродан: <{goods_in_saled_abs}>")
             logger.debug("Возврат значений <_get_goodsin>")
-            return None
+            raise ValueError
         
         if goods_in_close:
             candidates_goods_in = tuple((int(gin), int(snid), code, int(firm)) for gin, snid, code, firm in goods_in_close)
@@ -527,6 +532,7 @@ class TransactionHigh:
             return candidates_goods_in
 
         logger.warning(f"Никакие GOODS_IN_ID не найдены: {shop_nom_id}")
+        raise ValueError
         
 
     def _count_of_free_cells(self, goods_in_id: int) -> int:
